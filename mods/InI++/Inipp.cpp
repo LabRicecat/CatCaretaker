@@ -499,7 +499,7 @@ IniElement::operator IniDictionary() {
 }
 
 IniElement::operator std::string() {
-    if(type == IniType::String)
+    if(type == IniType::String && src.size() > 2)
         return src.substr(1,src.size()-2);
     return src;
 }
