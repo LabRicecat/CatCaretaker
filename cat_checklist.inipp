@@ -5,4 +5,4 @@ name="catcaretaker"
 
 [Download]
 dependencies=[]
-files=["$src","$inc","$mods,"inc/configs.hpp","inc/network.hpp","inc/options.hpp","src/configs.cpp","src/network.cpp","src/options.cpp","mods/ArgParser/ArgParser.h","mods/ArgParser/ArgParser.cpp","mods/InI++/Inipp.hpp","mods/InI++/Inipp.cpp"]
+files=["$src","$inc","$mods","inc/configs.hpp","inc/network.hpp","inc/options.hpp","src/configs.cpp","src/network.cpp","src/options.cpp","mods/ArgParser/ArgParser.h","mods/ArgParser/ArgParser.cpp","mods/InI++/Inipp.hpp","mods/InI++/Inipp.cpp"]
