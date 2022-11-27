@@ -123,8 +123,11 @@ std::string download_repo(std::string name) {
             continue;
         }
         else if(file[0] == '!') {
-            file = std::filesystem::path(file).filename().string() + 
-                (std::filesystem::path(file).has_extension() ? "." + std::filesystem::path(file).extension().string():"");
+            file.erase(file.begin());
+            if(file.empty()) {
+                continue;
+            }
+            file = last_name(file);
             print_message("DOWNLOAD","Downloading file: " + file);
             if(!download_page(CATCARE_REPOFILE(name,file),CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + file)) {
                 std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);
@@ -196,8 +199,11 @@ std::string get_local(std::string name, std::string path) {
             continue;
         }
         else if(file[0] == '!') {
-            file = std::filesystem::path(file).filename().string() + 
-                (std::filesystem::path(file).has_extension() ? "." + std::filesystem::path(file).extension().string():"");
+            file.erase(file.begin());
+            if(file.empty()) {
+                continue;
+            }
+            file = last_name(file);
             print_message("DOWNLOAD","Downloading file: " + file);
             try {
                 std::filesystem::copy(path + CATCARE_DIRSLASH + file,CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + file);

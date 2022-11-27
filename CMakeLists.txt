@@ -19,3 +19,7 @@ set(SOURCE
     )
 
 add_executable(${BINARY} ${SOURCE})
+
+if(UNIX)
+target_link_libraries(${BINARY} curl)
+endif()
