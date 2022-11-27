@@ -127,11 +127,11 @@ std::string download_repo(std::string name) {
             if(file.empty()) {
                 continue;
             }
-            file = last_name(file);
-            print_message("DOWNLOAD","Downloading file: " + file);
-            if(!download_page(CATCARE_REPOFILE(name,file),CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + file)) {
+            std::string ufile = last_name(file);
+            print_message("DOWNLOAD","Downloading file: " + ufile);
+            if(!download_page(CATCARE_REPOFILE(name,file),CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + ufile)) {
                 std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);
-                return "Error downloading file: " + file;
+                return "Error downloading file: " + ufile;
             }
         }
         else {
@@ -203,10 +203,10 @@ std::string get_local(std::string name, std::string path) {
             if(file.empty()) {
                 continue;
             }
-            file = last_name(file);
+            std::string ufile = last_name(file);
             print_message("DOWNLOAD","Downloading file: " + file);
             try {
-                std::filesystem::copy(path + CATCARE_DIRSLASH + file,CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + file);
+                std::filesystem::copy(path + CATCARE_DIRSLASH + file,CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + ufile);
             }
             catch(...) {
                 std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);
