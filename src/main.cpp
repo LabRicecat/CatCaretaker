@@ -76,7 +76,6 @@ int main(int argc,char** argv) {
         std::string repo = pargs("download");
         auto [usr,rname] = get_username(repo);
         if(rname != "") {
-            repo = rname;
             std::string oldusr = options["username"];
             options["username"] = usr;
             error = download_repo(rname);
@@ -87,8 +86,12 @@ int main(int argc,char** argv) {
         }
         if(error != "")
             print_message("ERROR","Error downloading repo: \"" + repo + "\"\n-> " + error);
-        else
+        else {
             print_message("RESULT","Successfully installed!");
+            if(!is_dependency(repo)) {
+                add_to_dependencylist(repo);
+            }
+        }
     }
     else if(pargs("local") != "") {
         std::string repo = pargs("local");
@@ -102,8 +105,12 @@ int main(int argc,char** argv) {
 
         if(error != "")
             print_message("ERROR","Error copying local repo: \"" + repo + "\"\n-> " + error);
-        else
+        else {
             print_message("RESULT","Successfully installed!");
+            if(!is_dependency(repo)) {
+                add_to_dependencylist(repo);
+            }
+        }
     }
     else if(pargs("erase") != "") {
         if(!std::filesystem::exists(CATCARE_ROOT + CATCARE_DIRSLASH + pargs("erase"))) {

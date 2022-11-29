@@ -89,6 +89,7 @@ void download_dependencies(IniList list) {
 std::string download_repo(std::string name) {
     make_register();
     make_checklist();
+
     if(std::filesystem::exists(CATCARE_ROOT + CATCARE_DIRSLASH + name)) {
         std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);
     }
@@ -148,9 +149,6 @@ std::string download_repo(std::string name) {
 
     if(!installed(name)) {
         add_to_register(name);
-    }
-    if(!is_dependency(name)) {
-        add_to_dependencylist(name);
     }
 
     download_dependencies(conf["dependencies"].to_list());
@@ -231,10 +229,6 @@ std::string get_local(std::string name, std::string path) {
     if(!installed(name)) {
         add_to_register(name);
     }
-    if(!is_dependency(name)) {
-        add_to_dependencylist(name);
-    }
-
     for(auto i : conf["dependencies"].to_list()) {
         if(i.getType() == IniType::String && !installed((std::string)i)) {
             print_message("DOWNLOAD","Downloading dependency: \"" + (std::string)i + "\"");
