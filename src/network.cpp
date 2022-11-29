@@ -8,6 +8,7 @@
 #include <pwd.h>
 
 bool download_page(std::string url, std::string file) {
+    // std::cout << "Downloading " << url << "\n";
     CURL *curl;
     FILE *fp;
     CURLcode res;
@@ -83,6 +84,8 @@ void download_dependencies(IniList list) {
     }
 }
 
+#define CLEAR_ON_ERR() if(option_or("clear_on_error","true") == "true") {std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);}
+
 std::string download_repo(std::string name) {
     make_register();
     make_checklist();
@@ -91,12 +94,12 @@ std::string download_repo(std::string name) {
     }
     std::filesystem::create_directories(CATCARE_ROOT + CATCARE_DIRSLASH + name);
     if(!download_page(CATCARE_REPOFILE(name,CATCARE_CHECKLISTNAME),CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH CATCARE_CHECKLISTNAME)) {
-        std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);
+        CLEAR_ON_ERR()
         return "Could not download checklist!";
     }
     IniDictionary conf = extract_configs(name);
     if(!valid_configs(conf)) {
-        std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);
+        CLEAR_ON_ERR()
         return config_healthcare(conf);
     }
     IniList files = conf["files"].to_list();
@@ -130,14 +133,14 @@ std::string download_repo(std::string name) {
             std::string ufile = last_name(file);
             print_message("DOWNLOAD","Downloading file: " + ufile);
             if(!download_page(CATCARE_REPOFILE(name,file),CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + ufile)) {
-                std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);
+                CLEAR_ON_ERR()
                 return "Error downloading file: " + ufile;
             }
         }
         else {
             print_message("DOWNLOAD","Downloading file: " + file);
             if(!download_page(CATCARE_REPOFILE(name,file),CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + file)) {
-                std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);
+                CLEAR_ON_ERR()
                 return "Error downloading file: " + file;
             }
         }

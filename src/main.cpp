@@ -74,11 +74,12 @@ int main(int argc,char** argv) {
     if(pargs("download") != "") {
         std::string error;
         std::string repo = pargs("download");
-        std::string usr = get_username(repo);
-        if(usr != "") {
+        auto [usr,rname] = get_username(repo);
+        if(rname != "") {
+            repo = rname;
             std::string oldusr = options["username"];
             options["username"] = usr;
-            error = download_repo(repo);
+            error = download_repo(rname);
             options["username"] = oldusr;
         }
         else {
@@ -191,7 +192,10 @@ int main(int argc,char** argv) {
             << "install_dir     :  The directory it installs the projects into. (default: catmods)\n"
             << "install_url     :  The url we try to download from. (default: https://raw.githubusercontent.com/)\n"
             << "default_silent  :  If \"true\" -> `--silent` will be enabled by default. (default: false)\n"
-            << "local_over_url  :  If \"true\" -> local redirects get priorities when it comes to dependencies (default: false)\n";
+            << "local_over_url  :  If \"true\" -> local redirects get priorities when it comes to dependencies (default: false)\n"
+            << "clear_on_error  :  If \"true\" -> clears the downloading project if an error occurs. (default: true)\n"
+            ;
+
         }
         else {
             print_help();

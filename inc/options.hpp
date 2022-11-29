@@ -5,6 +5,7 @@
 #include <string>
 #include <map>
 #include <filesystem>
+#include <tuple>
 
 inline bool opt_silence = false;
 
@@ -23,6 +24,6 @@ std::string option_or(std::string option, std::string els);
 
 std::string last_name(std::filesystem::path path);
 
-std::string get_username(std::string str);
+std::tuple<std::string,std::string> get_username(std::string str);
 
 #endif

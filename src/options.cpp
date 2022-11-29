@@ -56,19 +56,24 @@ std::string last_name(std::filesystem::path path) {
     return ret;
 }
 
-std::string get_username(std::string str) {
+std::tuple<std::string,std::string> get_username(std::string str) {
     while(!str.empty() && str.back() == '/') str.pop_back();
     
     std::string ret;
+    std::string el;
     bool sw = false;
     for(auto i : str) {
         if(i == '/') {
             sw = true;
+            el += ret;
             ret = "";
         }
         else if(sw) {
             ret += i;
         }
+        else {
+            el += i;
+        }
     }
-    return ret;
+    return std::make_tuple(el,ret);
 }
