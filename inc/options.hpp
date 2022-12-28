@@ -19,10 +19,10 @@ void print_message(std::string mod, std::string message);
 bool confirmation(std::string context);
 
 std::string ask_and_default(std::string defau);
-
 std::string option_or(std::string option, std::string els);
-
+std::string app_username(std::string str);
 std::string last_name(std::filesystem::path path);
+std::string to_lowercase(std::string str);
 
 std::tuple<std::string,std::string> get_username(std::string str);
 

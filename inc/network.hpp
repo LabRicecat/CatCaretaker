@@ -26,7 +26,7 @@ bool download_page(std::string url, std::string file);
 
 #define CATCARE_CONFIGFILE CATCARE_HOME "config.inipp"
 #define CATCARE_USER option_or("username","LabRiceCat")
-#define CATCARE_USERREPO(x) option_or("install_url","https://raw.githubusercontent.com/") + CATCARE_USER + "/" + x
+#define CATCARE_USERREPO(x) option_or("install_url","https://raw.githubusercontent.com/") + x
 
 #define CATCARE_BRANCH option_or("default_branch","main")
 

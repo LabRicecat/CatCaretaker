@@ -24,7 +24,7 @@ void add_to_register(std::string name);
 void remove_from_register(std::string name);
 
 bool is_dependency(std::string name);
-void add_to_dependencylist(std::string name);
+void add_to_dependencylist(std::string name, bool local = false);
 void remove_from_dependencylist(std::string name);
 IniList get_dependencylist();
 

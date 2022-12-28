@@ -165,6 +165,7 @@ IniList get_register() {
 
 bool installed(std::string name) {
     IniList lst = get_register();
+    name = app_username(name);
     for(auto i : lst) {
         if(i.getType() == IniType::String && name == (std::string)i) {
             return true;
@@ -177,12 +178,16 @@ void add_to_register(std::string name) {
     if(installed(name)) { return; }
     IniFile reg = IniFile::from_file(CATCARE_ROOT + CATCARE_DIRSLASH CATCARE_REGISTERNAME);
     IniList l = reg.get("installed").to_list();
-    l.push_back((std::string)("\"" + name + "\""));
+    l.push_back("\"" + name + "\"");
     reg.set("installed",l);
     reg.to_file(CATCARE_ROOT + CATCARE_DIRSLASH CATCARE_REGISTERNAME);
 }
 
 void remove_from_register(std::string name) {
+    auto [usr,rname] = get_username(name);
+    if(rname != "") {
+
+    }
     if(!installed(name)) { return; }
     IniFile reg = IniFile::from_file(CATCARE_ROOT + CATCARE_DIRSLASH CATCARE_REGISTERNAME);
     IniList l = reg.get("installed").to_list();
@@ -206,7 +211,7 @@ bool is_dependency(std::string name) {
     return false;
 }
 
-void add_to_dependencylist(std::string name) {
+void add_to_dependencylist(std::string name, bool local) {
     IniFile reg = IniFile::from_file(CATCARE_CHECKLISTNAME);
     IniList l = reg.get("dependencies","Download").to_list();
     for(size_t i = 0; i < l.size(); ++i) {
@@ -215,7 +220,10 @@ void add_to_dependencylist(std::string name) {
         }
     }
     IniElement elm;
-    elm = name;
+    if(local)
+        elm = "." CATCARE_DIRSLASH + name;
+    else
+        elm = name;
     l.push_back(elm);
     reg.set("dependencies",l,"Download");
     reg.to_file(CATCARE_CHECKLISTNAME);
@@ -224,6 +232,19 @@ void add_to_dependencylist(std::string name) {
 void remove_from_dependencylist(std::string name) {
     IniFile reg = IniFile::from_file(CATCARE_CHECKLISTNAME);
     IniList l = reg.get("dependencies","Download").to_list();
+    if(!is_dependency(name)) {
+        name = "." CATCARE_DIRSLASH + name;
+        for(size_t i = 0; i < l.size(); ++i) {
+            if(l[i].getType() == IniType::String && (std::string)l[i] == name) {
+                l.erase(l.begin()+i);
+                break;
+            }
+        }
+        reg.set("dependencies",l,"Download");
+        reg.to_file(CATCARE_CHECKLISTNAME);
+        return;    
+    }
+    
     for(size_t i = 0; i < l.size(); ++i) {
         if(l[i].getType() == IniType::String && (std::string)l[i] == name) {
             l.erase(l.begin()+i);

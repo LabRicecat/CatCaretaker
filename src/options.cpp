@@ -45,6 +45,14 @@ std::string option_or(std::string option, std::string els) {
     return els;
 }
 
+std::string app_username(std::string str) {
+    auto [usr,name] = get_username(str);
+    if(usr != "") {
+        return str;
+    }
+    return CATCARE_USER + "/" + str;
+}
+
 std::string last_name(std::filesystem::path path) {
     std::string ret;
     for(size_t i = path.string().size()-1; i >= 0; --i) {
@@ -53,6 +61,12 @@ std::string last_name(std::filesystem::path path) {
         else if(path.string()[i] != CATCARE_DIRSLASHc);
             ret.insert(ret.begin(),path.string()[i]);
     }
+    return ret;
+}
+
+std::string to_lowercase(std::string str) {
+    std::string ret;
+    for(auto i : str) if(isupper(i)) ret += tolower(i); else ret += i;
     return ret;
 }
 
@@ -65,8 +79,7 @@ std::tuple<std::string,std::string> get_username(std::string str) {
     for(auto i : str) {
         if(i == '/') {
             sw = true;
-            el += ret;
-            ret = "";
+            el += ret + "/";
         }
         else if(sw) {
             ret += i;

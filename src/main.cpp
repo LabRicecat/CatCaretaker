@@ -74,16 +74,9 @@ int main(int argc,char** argv) {
     if(pargs("download") != "") {
         std::string error;
         std::string repo = pargs("download");
-        auto [usr,rname] = get_username(repo);
-        if(rname != "") {
-            std::string oldusr = options["username"];
-            options["username"] = usr;
-            error = download_repo(rname);
-            options["username"] = oldusr;
-        }
-        else {
-            error = download_repo(repo);
-        }
+        repo = to_lowercase(repo);
+        error = download_repo(repo);
+
         if(error != "")
             print_message("ERROR","Error downloading repo: \"" + repo + "\"\n-> " + error);
         else {
@@ -106,9 +99,9 @@ int main(int argc,char** argv) {
         if(error != "")
             print_message("ERROR","Error copying local repo: \"" + repo + "\"\n-> " + error);
         else {
-            print_message("RESULT","Successfully installed!");
+            print_message("RESULT","Successfully copied!");
             if(!is_dependency(repo)) {
-                add_to_dependencylist(repo);
+                add_to_dependencylist(repo,true);
             }
         }
     }
