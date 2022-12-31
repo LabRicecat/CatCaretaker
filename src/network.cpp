@@ -114,6 +114,7 @@ std::string download_repo(std::string install) {
         std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);
     }
     std::filesystem::create_directories(CATCARE_ROOT + CATCARE_DIRSLASH + name);
+    std::filesystem::create_symlink(".." CATCARE_DIRSLASH ".." CATCARE_DIRSLASH + CATCARE_ROOT, CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + CATCARE_ROOT);
     if(!download_page(CATCARE_REPOFILE(install,CATCARE_CHECKLISTNAME),CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH CATCARE_CHECKLISTNAME)) {
         CLEAR_ON_ERR()
         return "Could not download checklist!";
