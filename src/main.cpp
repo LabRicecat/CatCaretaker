@@ -65,6 +65,14 @@ int main(int argc,char** argv) {
         .addArg("--silent",ARG_TAG,{"-s"})
     ;
 
+    std::atexit([](){
+        if(option_or("clear_on_error","true") == "true") {
+            if(std::filesystem::exists(CATCARE_TMPDIR)) {
+                std::filesystem::remove_all(CATCARE_TMPDIR);
+            }
+        }
+    });
+
     ParsedArgs pargs = parser.parse(argv,argc);
 
     if(!pargs || pargs["--help"]) {
@@ -315,17 +323,15 @@ int main(int argc,char** argv) {
         std::filesystem::create_directory(CATCARE_TMPDIR);
         if(!download_page(to_download,CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_BROWSING_FILE)) {
             print_message("ERROR","An error occured while downloading the browsing file");
-            std::filesystem::remove(CATCARE_TMPDIR);
             return 1;
         }
 
         if(!browse(CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_BROWSING_FILE)) {
             print_message("ERROR","The browsing file seems to be corrupted! Sorry.");
-            std::filesystem::remove(CATCARE_TMPDIR);
             return 1;
         }
 
-        std::filesystem::remove(CATCARE_TMPDIR);
+        std::filesystem::remove_all(CATCARE_TMPDIR);
     }
     else {
         print_help();

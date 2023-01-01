@@ -93,7 +93,7 @@ std::tuple<std::string,std::string> get_username(std::string str) {
 }
 
 #define TYPE_CHECK(entry, type) if(entry.get_type() != type)
-#define MUST_HAVE(entry, member) if(entry.count(member) > 0)
+#define MUST_HAVE(entry, member) if(entry.count(member) == 0)
 
 void print_entry(IniDictionary current) {
     std::cout << "Description: " << current["description"] << "\n"
@@ -125,6 +125,8 @@ bool browse(std::string file) {
         entries.push_back(entry);
     }
 
+    if(entries.empty()) return false;
+    
     int current = 0;
     bool exit = false;
     while(!exit) {
@@ -151,7 +153,7 @@ bool browse(std::string file) {
             --current;
         }
         else if(inp == "i" || inp == "I" || inp == "install") {
-            std::string repo = entries[current]["name"];
+            std::string repo = (std::string)entries[current]["author"] + "/" + (std::string)entries[current]["name"];
             repo = to_lowercase(repo);
             std::string error = download_repo(repo);
 

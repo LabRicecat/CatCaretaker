@@ -107,7 +107,6 @@ IniDictionary extract_configs(std::string name) {
 
     IniFile file = IniFile::from_file(CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH CATCARE_CHECKLISTNAME);
     if(!file) {
-        std::cout << file.error_msg() << "\n";
         return ret;
     }
 

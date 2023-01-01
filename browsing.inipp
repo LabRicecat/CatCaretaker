@@ -1,32 +1,34 @@
 [Main]
 browsing={
-    "CatTypes":{
+    CatTypes: {
         description: "Simple adjustable token alalyzing tool",
         language: "C++",
-        "author":"CatCaretaker",
+        author:"CatCaretaker",
     },
-    "KittenLexer":{
+    KittenLexer: {
         description: "A minimalistic kitten themed lexer",
         language: "C++",
-        "author":"CatCaretaker",
+        author:"CatCaretaker",
     },
-    "KittenTerminal":{
+    KittenTerminal: {
         description: "A simple cat themed command line parser tool",
         language: "C++",
-        "author":"CatCaretaker",
+        author:"CatCaretaker",
     },
-    "FelineLogger":{
+    FelineLogger: {
         description: "A simple logger that also allows to read logs",
         language: "C++",
-        "author":"CatCaretaker",
+        author:"CatCaretaker",
     },
     
-    "InIpp":{
+    InIpp: {
         description: "InI++ (Or InIpp) is normal InI, but with changes and additions",
-        language: "C++"
+        language: "C++",
+        author:"LabRicecat",
     },
-    "ArgParser":{
+    ArgParser: {
         description: "A simple argument parser",
-        language: "C++"
+        language: "C++",
+        author:"LabRicecat",
     },
 }
