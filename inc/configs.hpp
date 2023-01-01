@@ -2,7 +2,7 @@
 #define CONFIGS_HPP
 
 #include "network.hpp"
-#include "../mods/InI++/Inipp.hpp"
+#include "../mods/inipp.hpp"
 
 void make_file(std::string name, std::string std = "");
 

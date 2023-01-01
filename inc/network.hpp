@@ -5,8 +5,9 @@
 #include <fstream>
 #include <iostream>
 #include <filesystem>
+#include <stdlib.h>
 
-#include "../mods/InI++/Inipp.hpp"
+#include "../mods/inipp.hpp"
 #include "options.hpp"
 
 std::string get_username();
@@ -15,13 +16,19 @@ bool download_page(std::string url, std::string file);
 #define CATCARE_PROGNAME "catcaretaker"
 
 #ifdef __linux__
+# include <unistd.h>
 # define CATCARE_HOME "/home/" + get_username() + "/." CATCARE_PROGNAME "/"
 # define CATCARE_DIRSLASH "/"
 # define CATCARE_DIRSLASHc '/'
+inline void cat_clsscreen() { system("clear"); }
+inline void cat_sleep(unsigned int mili) { usleep(mili * 1000); }
 #elif defined(_WIN32)
+# include <windows.h>
 # define CATCARE_HOME "C:\\ProgramData\\." CATCARE_PROGNAME "\\"
 # define CATCARE_DIRSLASH "\\"
 # define CATCARE_DIRSLASHc '\\'
+inline void cat_clsscreen() { system("cls"); }
+inline void cat_sleep(unsigned int mili) { Sleep(mili); }
 #endif
 
 #define CATCARE_CONFIGFILE CATCARE_HOME "config.inipp"
@@ -39,6 +46,9 @@ bool download_page(std::string url, std::string file);
 #define CATCARE_REGISTERNAME "cat_register.inipp"
 
 #define CATCARE_ROOT option_or("install_dir","catmods")
+
+#define CATCARE_BROWSING_FILE "browsing.inipp"
+#define CATCARE_BROWSE_OFFICIAL CATCARE_REPOFILE("labricecat/catcaretaker",CATCARE_BROWSING_FILE)
 
 void download_dependencies(IniList list);
 

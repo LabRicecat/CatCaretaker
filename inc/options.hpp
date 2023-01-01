@@ -26,4 +26,6 @@ std::string to_lowercase(std::string str);
 
 std::tuple<std::string,std::string> get_username(std::string str);
 
+bool browse(std::string file);
+
 #endif

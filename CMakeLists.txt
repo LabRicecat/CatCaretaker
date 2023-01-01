@@ -15,7 +15,6 @@ set(SOURCE
     src/options.cpp 
 
     mods/ArgParser/ArgParser.cpp 
-    mods/InI++/Inipp.cpp
     )
 
 add_executable(${BINARY} ${SOURCE})

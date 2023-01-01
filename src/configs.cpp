@@ -130,16 +130,16 @@ bool valid_configs(IniDictionary conf) {
 }
 
 std::string config_healthcare(IniDictionary conf) {
-    if(conf["name"].getType() != IniType::String) {
+    if(conf["name"].get_type() != IniType::String) {
         return "\"name\" must be a string!";
     }
-    if(conf.count("dependencies") != 0 && conf["dependencies"].getType() != IniType::List) {
+    if(conf.count("dependencies") != 0 && conf["dependencies"].get_type() != IniType::List) {
         return "\"dependencies\" must be a list!";
     }
-    if(conf["files"].getType() != IniType::List) {
+    if(conf["files"].get_type() != IniType::List) {
         return "\"files\" must be a list!";
     }
-    if(conf.count("version") != 0 && conf["version"].getType() != IniType::String) {
+    if(conf.count("version") != 0 && conf["version"].get_type() != IniType::String) {
         return "\"version\" must be a string!";
     }
     return "";
@@ -167,7 +167,7 @@ bool installed(std::string name) {
     IniList lst = get_register();
     name = app_username(name);
     for(auto i : lst) {
-        if(i.getType() == IniType::String && name == (std::string)i) {
+        if(i.get_type() == IniType::String && name == (std::string)i) {
             return true;
         }
     }
@@ -192,7 +192,7 @@ void remove_from_register(std::string name) {
     IniFile reg = IniFile::from_file(CATCARE_ROOT + CATCARE_DIRSLASH CATCARE_REGISTERNAME);
     IniList l = reg.get("installed").to_list();
     for(size_t i = 0; i < l.size(); ++i) {
-        if(l[i].getType() == IniType::String && (std::string)l[i] == name) {
+        if(l[i].get_type() == IniType::String && (std::string)l[i] == name) {
             l.erase(l.begin()+i);
             break;
         }
@@ -204,7 +204,7 @@ void remove_from_register(std::string name) {
 bool is_dependency(std::string name) {
     IniList lst = get_dependencylist();
     for(auto i : lst) {
-        if(i.getType() == IniType::String && name == (std::string)i) {
+        if(i.get_type() == IniType::String && name == (std::string)i) {
             return true;
         }
     }
@@ -215,7 +215,7 @@ void add_to_dependencylist(std::string name, bool local) {
     IniFile reg = IniFile::from_file(CATCARE_CHECKLISTNAME);
     IniList l = reg.get("dependencies","Download").to_list();
     for(size_t i = 0; i < l.size(); ++i) {
-        if(l[i].getType() == IniType::String && (std::string)l[i] == name) {
+        if(l[i].get_type() == IniType::String && (std::string)l[i] == name) {
             return;
         }
     }
@@ -235,7 +235,7 @@ void remove_from_dependencylist(std::string name) {
     if(!is_dependency(name)) {
         name = "." CATCARE_DIRSLASH + name;
         for(size_t i = 0; i < l.size(); ++i) {
-            if(l[i].getType() == IniType::String && (std::string)l[i] == name) {
+            if(l[i].get_type() == IniType::String && (std::string)l[i] == name) {
                 l.erase(l.begin()+i);
                 break;
             }
@@ -246,7 +246,7 @@ void remove_from_dependencylist(std::string name) {
     }
     
     for(size_t i = 0; i < l.size(); ++i) {
-        if(l[i].getType() == IniType::String && (std::string)l[i] == name) {
+        if(l[i].get_type() == IniType::String && (std::string)l[i] == name) {
             l.erase(l.begin()+i);
             break;
         }

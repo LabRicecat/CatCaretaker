@@ -9,13 +9,14 @@ void print_help() {
             << "option :=\n"
             << "   download|get <repository>    :  downloads and sets up the project.\n"
             << "   local <path/redirect>        :  copies an already existing project by path or redirect.\n"
-            << "   erase|remove <install>       :  removes an installed project.\n"
+            << "   erase|remove [.all|<proj>]   :  removes an installed project.\n"
             << "   cleanup                      :  removes all installed projects.\n"
             << "   info <install>               :  shows infos about the selected project.\n"
             << "   option <option> to <value>   :  sets OPTION to VALUE in the config file\n"
             << "   redirect <option> to <value> :  sets OPTION as local redirect to VALUE in the config file.\n"
             << "   config [explain|reset|show]  :  manages the config file.\n"
-            << "   check [all|<project>]        :  checks if for PROJECT is a new version available.\n"
+            << "   check [.all|<project>]       :  checks if for PROJECT is a new version available.\n"
+            << "   browse [official|<repo>]     :  view a browsing file showing of different projects.\n"
             << "   guide                        :  starts a little config questionary.\n\n"
             << "   setup <name>                 :  sets up a checklist for a project.\n"
             << "   sync                         :  reinstalls all the dependencies of the current project.\n"
@@ -52,14 +53,15 @@ int main(int argc,char** argv) {
         .addArg("cleanup",ARG_TAG,{},0)
         .addArg("info",ARG_SET,{},0)
         .addArg("list",ARG_TAG,{},0)
-        .addArg("option",ARG_SET,{"set"},0)
-        .addArg("redirect",ARG_SET,{"set"},0)
-        .addArg("to",ARG_SET,{},2)
+        .addArg("option",ARG_SET,{},0)
+        .addArg("redirect",ARG_SET,{},0)
+        .addArg("to",ARG_SET,{"is"},2)
         .addArg("config",ARG_SET,{},0)
         .addArg("setup",ARG_SET,{},0)
         .addArg("guide",ARG_TAG,{},0)
         .addArg("sync",ARG_TAG,{},0)
         .addArg("check",ARG_SET,{},0)
+        .addArg("browse",ARG_SET,{},0)
         .addArg("--silent",ARG_TAG,{"-s"})
     ;
 
@@ -108,25 +110,32 @@ int main(int argc,char** argv) {
         }
     }
     else if(pargs("erase") != "") {
-        if(!std::filesystem::exists(CATCARE_ROOT + CATCARE_DIRSLASH + pargs("erase"))) {
-            print_message("ERROR","No such repo installed: \"" + pargs("erase") + "\"");
-            return 0;
-        }
-        std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + pargs("erase"));
-        
-        print_message("DELETE","Removed repo: \"" + pargs("erase") + "\"");
-        remove_from_register(pargs("erase"));
-        remove_from_dependencylist(pargs("erase"));
-    }
-    else if(pargs["cleanup"]) {
-        if(std::filesystem::exists(CATCARE_ROOT)) {
+        if(pargs("erase") == ".all") {
             std::filesystem::remove_all(CATCARE_ROOT);
             IniFile f = IniFile::from_file(CATCARE_CHECKLISTNAME);
             f.set("dependencies",IniList(),"Download");
             f.to_file(CATCARE_CHECKLISTNAME);
+            print_message("DELETE","Removed all dependencies!");
+            make_register();
+        }
+        else {
+            if(!std::filesystem::exists(CATCARE_ROOT + CATCARE_DIRSLASH + pargs("erase"))) {
+                print_message("ERROR","No such repo installed: \"" + pargs("erase") + "\"");
+                return 0;
+            }
+            std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + pargs("erase"));
+            
+            print_message("DELETE","Removed repo: \"" + pargs("erase") + "\"");
+            remove_from_register(pargs("erase"));
+            remove_from_dependencylist(pargs("erase"));
+        }
+    }
+    else if(pargs["cleanup"]) {
+        if(std::filesystem::exists(CATCARE_ROOT)) {
+            std::filesystem::remove_all(CATCARE_ROOT);
         }
         std::cout << "All files have been deleted.\n";
-        make_register();
+        // make_register();
     }
     else if(pargs("info") != "") {
         std::string repo = pargs("info");
@@ -247,11 +256,11 @@ int main(int argc,char** argv) {
     else if(pargs("check") != "") {
         std::string proj = pargs("check");
         proj = to_lowercase(proj);
-        if(proj == "all") {
+        if(proj == ".all") {
             int found = 0;
             IniList reg = get_register();
             for(auto i : reg) {
-                if(i.getType() == IniType::String) {
+                if(i.get_type() == IniType::String) {
                     std::string p = app_username((std::string)i);
                     auto [newv,oldv] = needs_update(p);
                     if(newv != "") {
@@ -295,6 +304,28 @@ int main(int argc,char** argv) {
                 std::cout << "Project \"" << proj << "\" is up to date!\n";
             }
         }
+    }
+    else if(pargs("browse") != "") {
+        std::string brow = pargs("browse");
+        std::string to_download = CATCARE_REPOFILE(brow,CATCARE_BROWSING_FILE);
+        if(brow == "official") {
+            to_download = CATCARE_BROWSE_OFFICIAL;
+        }
+        
+        std::filesystem::create_directory(CATCARE_TMPDIR);
+        if(!download_page(to_download,CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_BROWSING_FILE)) {
+            print_message("ERROR","An error occured while downloading the browsing file");
+            std::filesystem::remove(CATCARE_TMPDIR);
+            return 1;
+        }
+
+        if(!browse(CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_BROWSING_FILE)) {
+            print_message("ERROR","The browsing file seems to be corrupted! Sorry.");
+            std::filesystem::remove(CATCARE_TMPDIR);
+            return 1;
+        }
+
+        std::filesystem::remove(CATCARE_TMPDIR);
     }
     else {
         print_help();

@@ -81,7 +81,7 @@ bool download_page(std::string url, std::string file) {}
 
 void download_dependencies(IniList list) {
     for(auto i : list) {
-        if(i.getType() == IniType::String && !installed((std::string)i)) {
+        if(i.get_type() == IniType::String && !installed((std::string)i)) {
             std::string is = i;
             if(is.size() > 2 && is[0] == '.' && is[1] == CATCARE_DIRSLASHc) {
                 print_message("COPYING","Copying local dependency: \"" + is + "\"");
@@ -127,7 +127,7 @@ std::string download_repo(std::string install) {
     IniList files = conf["files"].to_list();
 
     for(auto i : files) {
-        if(i.getType() != IniType::String) {
+        if(i.get_type() != IniType::String) {
             continue;
         }
         std::string file = (std::string)i;
@@ -201,7 +201,7 @@ std::string get_local(std::string name, std::string path) {
     IniList files = conf["files"].to_list();
 
     for(auto i : files) {
-        if(i.getType() != IniType::String) {
+        if(i.get_type() != IniType::String) {
             continue;
         }
         std::string file = (std::string)i;
@@ -252,7 +252,7 @@ std::string get_local(std::string name, std::string path) {
         add_to_register(name);
     }
     for(auto i : conf["dependencies"].to_list()) {
-        if(i.getType() == IniType::String && !installed((std::string)i)) {
+        if(i.get_type() == IniType::String && !installed((std::string)i)) {
             print_message("COPYING","Downloading dependency: \"" + (std::string)i + "\"");
             std::string error;
             if(option_or("local_over_url","false") == "true") {
@@ -304,13 +304,13 @@ std::tuple<std::string,std::string> needs_update(std::string name) {
     }
 
     auto newest_version = r.get("version","Info");
-    if(newest_version.getType() != IniType::String) { REMOVE_TMP(); RETURN_TUP("",""); }
+    if(newest_version.get_type() != IniType::String) { REMOVE_TMP(); RETURN_TUP("",""); }
 
     r = IniFile::from_file(CATCARE_ROOT + CATCARE_DIRSLASH + proj + CATCARE_DIRSLASH CATCARE_CHECKLISTNAME);
     if(!r || !r.has("version","Info")) { REMOVE_TMP(); RETURN_TUP(newest_version.to_string(),"???"); }
 
     auto current_version = r.get("version","Info");
-    if(current_version.getType() != IniType::String) {
+    if(current_version.get_type() != IniType::String) {
         REMOVE_TMP(); RETURN_TUP(newest_version.to_string(),"???");
     }
     
