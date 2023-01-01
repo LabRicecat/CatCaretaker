@@ -37,13 +37,25 @@ If `<user>/` is not specified, the default user will be used.
 
 This command will add a `catmods` directory and install the project with all it's dependencies in there.
 
+## Browse through projects
+Not sure what to install? You can use the `browse` option to browse through official or community lists of projects!  
+Simply
+```
+$ catcare browse official
+```
+or
+```
+$ catcare browse <repo>
+```
+and enjoy the read!
+
 ## Removing a project
 ```
-$ catcare erase <project>
+$ catcare remove <project>
 ```
-To remove on project and
+..to remove on project and
 ```
-$ catcare cleanup
+$ catcare remove .all
 ```
 ..to remove all projects installed.
 
