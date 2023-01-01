@@ -287,3 +287,40 @@ std::string get_local(std::string name, std::string path) {
 
     return "";
 }
+
+#define REMOVE_TMP() std::filesystem::remove_all(CATCARE_TMPDIR)
+#define RETURN_TUP(a,b) return std::make_tuple<std::string,std::string>(a,b)
+
+std::tuple<std::string,std::string> needs_update(std::string name) {
+    name = app_username(name);
+    if(!installed(name)) RETURN_TUP("","");
+    auto [usr,proj] = get_username(name);
+
+    std::filesystem::create_directories(CATCARE_TMPDIR);
+    download_page(CATCARE_REPOFILE(name,CATCARE_CHECKLISTNAME),CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_CHECKLISTNAME);
+    IniFile r = IniFile::from_file(CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_CHECKLISTNAME);
+    if(!r || !r.has("version","Info")) {
+        REMOVE_TMP(); RETURN_TUP("","");
+    }
+
+    auto newest_version = r.get("version","Info");
+    if(newest_version.getType() != IniType::String) { REMOVE_TMP(); RETURN_TUP("",""); }
+
+    r = IniFile::from_file(CATCARE_ROOT + CATCARE_DIRSLASH + proj + CATCARE_DIRSLASH CATCARE_CHECKLISTNAME);
+    if(!r || !r.has("version","Info")) { REMOVE_TMP(); RETURN_TUP(newest_version.to_string(),"???"); }
+
+    auto current_version = r.get("version","Info");
+    if(current_version.getType() != IniType::String) {
+        REMOVE_TMP(); RETURN_TUP(newest_version.to_string(),"???");
+    }
+    
+    if(newest_version.to_string() != current_version.to_string()) {
+        REMOVE_TMP(); RETURN_TUP(newest_version.to_string(),current_version.to_string());
+    }
+
+    REMOVE_TMP();
+    RETURN_TUP("","");
+}
+
+#undef REMOVE_TMP
+#undef RETURN_TUP

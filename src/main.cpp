@@ -9,19 +9,20 @@ void print_help() {
             << "option :=\n"
             << "   download|get <repository>    :  downloads and sets up the project.\n"
             << "   local <path/redirect>        :  copies an already existing project by path or redirect.\n"
-            << "   erase <install>              :  removes an installed project.\n"
-            << "   cleanup                      :  removes all installed projects\n"
+            << "   erase|remove <install>       :  removes an installed project.\n"
+            << "   cleanup                      :  removes all installed projects.\n"
             << "   info <install>               :  shows infos about the selected project.\n"
             << "   option <option> to <value>   :  sets OPTION to VALUE in the config file\n"
-            << "   redirect <option> to <value> :  sets OPTION as local redirect to VALUE in the config file\n"
+            << "   redirect <option> to <value> :  sets OPTION as local redirect to VALUE in the config file.\n"
             << "   config [explain|reset|show]  :  manages the config file.\n"
+            << "   check [all|<project>]        :  checks if for PROJECT is a new version available.\n"
             << "   guide                        :  starts a little config questionary.\n\n"
             << "   setup <name>                 :  sets up a checklist for a project.\n"
             << "   sync                         :  reinstalls all the dependencies of the current project.\n"
             << "flags := \n"
             << "   --help|-h                  :  prints this and exits.\n"
             << "   --silent|-s                :  prevents info and error messages.\n\n"
-            << "By LabRiceCat (c) 2022\n"
+            << "By LabRiceCat (c) 2023\n"
             << "Repository: https://github.com/LabRiceCat/catcaretaker\n";
     std::exit(0);
 }
@@ -47,7 +48,7 @@ int main(int argc,char** argv) {
         .addArg("--help",ARG_TAG,{"-h"},0)
         .addArg("download",ARG_SET,{"get"},0)
         .addArg("local",ARG_SET,{},0)
-        .addArg("erase",ARG_SET,{},0)
+        .addArg("erase",ARG_SET,{"remove"},0)
         .addArg("cleanup",ARG_TAG,{},0)
         .addArg("info",ARG_SET,{},0)
         .addArg("list",ARG_TAG,{},0)
@@ -58,6 +59,7 @@ int main(int argc,char** argv) {
         .addArg("setup",ARG_SET,{},0)
         .addArg("guide",ARG_TAG,{},0)
         .addArg("sync",ARG_TAG,{},0)
+        .addArg("check",ARG_SET,{},0)
         .addArg("--silent",ARG_TAG,{"-s"})
     ;
 
@@ -127,11 +129,15 @@ int main(int argc,char** argv) {
         make_register();
     }
     else if(pargs("info") != "") {
-        if(!installed(pargs("info"))) {
-            print_message("ERROR","No such repo installed: \"" + pargs("info") + "\"");
+        std::string repo = pargs("info");
+        repo = to_lowercase(repo);
+        repo = app_username(repo);
+        auto [usr, proj] = get_username(repo);
+        if(!installed(repo)) {
+            print_message("ERROR","No such repo installed: \"" + repo + "\"");
             return 0;
         }
-        IniDictionary d = extract_configs(pargs("info"));
+        IniDictionary d = extract_configs(proj);
         std::cout << "Name: " << (std::string)d["name"] << "\n";
         if(d.count("version") != 0) {
             std::cout << "Version: " << (std::string)d["version"] << "\n";
@@ -237,6 +243,58 @@ int main(int argc,char** argv) {
             remove_from_register((std::string)i);
         }
         download_dependencies(get_dependencylist());
+    }
+    else if(pargs("check") != "") {
+        std::string proj = pargs("check");
+        proj = to_lowercase(proj);
+        if(proj == "all") {
+            int found = 0;
+            IniList reg = get_register();
+            for(auto i : reg) {
+                if(i.getType() == IniType::String) {
+                    std::string p = app_username((std::string)i);
+                    auto [newv,oldv] = needs_update(p);
+                    if(newv != "") {
+                        std::cout << "Project \"" << p << "\" can be updated: " << oldv << " -> " << newv << "\n";
+                        ++found;
+                    }
+                }
+            }
+            if(found == 0) {
+                std::cout << "All dependencies up to date!\n";
+            }
+            else {
+                std::cout << "Found " << found << " available updates!\nRun `catcare sync` to update them all.\n";
+            }
+            return 0;
+        }
+
+        app_username(proj);
+        if(!installed(proj)) {
+            std::cout << "Project: \"" << proj << "\" is not installed!\nDo you want to install it? [y/N]:";
+            std::string inp;
+            std::getline(std::cin,inp);
+            if(inp == "Yes" || inp == "y" || inp == "Y" || inp == "yes") {
+                std::string error = download_repo(proj);
+                if(error != "")
+                    print_message("ERROR","Error downloading repo: \"" + proj + "\"\n-> " + error);
+                else {
+                    print_message("RESULT","Successfully installed!");
+                    if(!is_dependency(proj)) {
+                        add_to_dependencylist(proj);
+                    }
+                }
+            }
+        }
+        else {
+            auto [newv,oldv] = needs_update(proj);
+            if(newv != "") {
+                std::cout << "Project \"" << proj << "\" can be updated: " << oldv << " -> " << newv << "\n";
+            }
+            else {
+                std::cout << "Project \"" << proj << "\" is up to date!\n";
+            }
+        }
     }
     else {
         print_help();

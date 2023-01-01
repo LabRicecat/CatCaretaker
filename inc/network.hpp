@@ -25,6 +25,7 @@ bool download_page(std::string url, std::string file);
 #endif
 
 #define CATCARE_CONFIGFILE CATCARE_HOME "config.inipp"
+#define CATCARE_TMPDIR CATCARE_HOME "tmp"
 #define CATCARE_USER option_or("username","LabRiceCat")
 #define CATCARE_USERREPO(x) option_or("install_url","https://raw.githubusercontent.com/") + x
 
@@ -43,5 +44,8 @@ void download_dependencies(IniList list);
 
 std::string download_repo(std::string name);
 std::string get_local(std::string name, std::string path);
+
+// new - old (new == "" when no update needed)
+std::tuple<std::string,std::string> needs_update(std::string name);
 
 #endif

@@ -50,7 +50,7 @@ std::string app_username(std::string str) {
     if(usr != "") {
         return str;
     }
-    return CATCARE_USER + "/" + str;
+    return to_lowercase(CATCARE_USER) + "/" + str;
 }
 
 std::string last_name(std::filesystem::path path) {
