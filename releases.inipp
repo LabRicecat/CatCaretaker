@@ -1,0 +1,10 @@
+[Main]
+
+[1.1.2]
+path_notes = "- added option \"release\"
+- added option \"add\"
+- added option \"whatsnew\"
+- added options for \"browse\" to install and uninstall projects
+"
+date = "2023/1/2 15:24:43"
+

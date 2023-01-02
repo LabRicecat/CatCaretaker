@@ -96,9 +96,12 @@ std::tuple<std::string,std::string> get_username(std::string str) {
 #define MUST_HAVE(entry, member) if(entry.count(member) == 0)
 
 void print_entry(IniDictionary current) {
+    std::string repo = (std::string)current["author"] + "/" + (std::string)current["name"];
+    repo = to_lowercase(repo);
     std::cout << "Description: " << current["description"] << "\n"
         << "Written for language: " << current["language"] << "\n"
-        << "By " << current["author"];
+        << "By " << current["author"] << "\n"
+        << "Installed: " << (installed(repo) ? "Yes" : "No") << "\n";
 }
 
 bool browse(std::string file) {
@@ -132,6 +135,9 @@ bool browse(std::string file) {
     while(!exit) {
         cat_clsscreen();
 
+        std::string repo = (std::string)entries[current]["author"] + "/" + (std::string)entries[current]["name"];
+        repo = to_lowercase(repo);
+
         std::cout << ">> "<< entries[current]["name"] << " <<\n";
         print_entry(entries[current]);
 
@@ -142,8 +148,14 @@ bool browse(std::string file) {
         if(current != 0) {
             std::cout << "[p]revious, ";
         }
+        if(installed(repo)) {
+            std::cout << "[u]ninstall, ";
+        }
+        else {
+            std::cout << "[i]nstall, ";
+        }
 
-        std::cout << "[i]nstall, [e]xit\n= ";
+        std::cout << "[e]xit\n=> ";
         std::string inp;
         std::getline(std::cin,inp);
         if((inp == "n" || inp == "N" || inp == "next") && current != entries.size()-1) {
@@ -152,9 +164,7 @@ bool browse(std::string file) {
         else if((inp == "p" || inp == "P" || inp == "previous") && current != 0) {
             --current;
         }
-        else if(inp == "i" || inp == "I" || inp == "install") {
-            std::string repo = (std::string)entries[current]["author"] + "/" + (std::string)entries[current]["name"];
-            repo = to_lowercase(repo);
+        else if((inp == "i" || inp == "I" || inp == "install") && !installed(repo)) {
             std::string error = download_repo(repo);
 
             if(error != "")
@@ -165,6 +175,14 @@ bool browse(std::string file) {
                     add_to_dependencylist(repo);
                 }
             }
+            cat_sleep(1000);
+        }
+        else if((inp == "u" || inp == "U" || inp == "uninstall") && installed(repo)) {
+            std::string name = to_lowercase(entries[current]["name"]);
+            std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);
+            remove_from_register(repo);
+            remove_from_dependencylist(repo);
+            print_message("DELETE","Removed repo: \"" + repo + "\"");
             cat_sleep(1000);
         }
         else if(inp == "e" || inp == "E" || inp == "exit") {

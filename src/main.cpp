@@ -2,6 +2,8 @@
 #include "../inc/options.hpp"
 #include "../mods/ArgParser/ArgParser.h"
 
+#include <time.h>
+
 void print_help() {
     std::cout << "## CatCaretaker\n"
             << "A configurable helper to reuse already made work fast and efficient from github.\n\n"
@@ -10,6 +12,7 @@ void print_help() {
             << "   download|get <repository>    :  downloads and sets up the project.\n"
             << "   local <path/redirect>        :  copies an already existing project by path or redirect.\n"
             << "   erase|remove [.all|<proj>]   :  removes an installed project.\n"
+            << "   add <path>                   :  add a file to the downloadlist\n"
             << "   cleanup                      :  removes all installed projects.\n"
             << "   info <install>               :  shows infos about the selected project.\n"
             << "   option <option> to <value>   :  sets OPTION to VALUE in the config file\n"
@@ -17,9 +20,11 @@ void print_help() {
             << "   config [explain|reset|show]  :  manages the config file.\n"
             << "   check [.all|<project>]       :  checks if for PROJECT is a new version available.\n"
             << "   browse [official|<repo>]     :  view a browsing file showing of different projects.\n"
-            << "   guide                        :  starts a little config questionary.\n\n"
+            << "   whatsnew <project>           :  read the latest patch notes of a project.\n"
+            << "   guide                        :  starts a little config questionary.\n"
             << "   setup <name>                 :  sets up a checklist for a project.\n"
-            << "   sync                         :  reinstalls all the dependencies of the current project.\n"
+            << "   release                      :  set up a release note easily.\n"
+            << "   sync                         :  reinstalls all the dependencies of the current project.\n\n"
             << "flags := \n"
             << "   --help|-h                  :  prints this and exits.\n"
             << "   --silent|-s                :  prevents info and error messages.\n\n"
@@ -62,6 +67,9 @@ int main(int argc,char** argv) {
         .addArg("sync",ARG_TAG,{},0)
         .addArg("check",ARG_SET,{},0)
         .addArg("browse",ARG_SET,{},0)
+        .addArg("release",ARG_TAG,{},0)
+        .addArg("add",ARG_SET,{},0)
+        .addArg("whatsnew",ARG_SET,{},0)
         .addArg("--silent",ARG_TAG,{"-s"})
     ;
 
@@ -127,15 +135,19 @@ int main(int argc,char** argv) {
             make_register();
         }
         else {
-            if(!std::filesystem::exists(CATCARE_ROOT + CATCARE_DIRSLASH + pargs("erase"))) {
-                print_message("ERROR","No such repo installed: \"" + pargs("erase") + "\"");
+            std::string name = to_lowercase(pargs("erase"));
+            name = app_username(name);
+            auto [usr,proj] = get_username(name);
+            if(!std::filesystem::exists(CATCARE_ROOT + CATCARE_DIRSLASH + name)) {
+                print_message("ERROR","No such repo installed: \"" + name + "\"");
                 return 0;
             }
-            std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + pargs("erase"));
             
-            print_message("DELETE","Removed repo: \"" + pargs("erase") + "\"");
-            remove_from_register(pargs("erase"));
-            remove_from_dependencylist(pargs("erase"));
+            std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + proj);
+            
+            print_message("DELETE","Removed repo: \"" + name + "\"");
+            remove_from_register(name);
+            remove_from_dependencylist(name);
         }
     }
     else if(pargs["cleanup"]) {
@@ -331,6 +343,137 @@ int main(int argc,char** argv) {
             return 1;
         }
 
+        std::filesystem::remove_all(CATCARE_TMPDIR);
+    }
+    else if(pargs["release"]) {
+        std::cout << "Release version (common format: MAJOR.MINOR.PATCH)\n=> ";
+        std::string version;
+        std::getline(std::cin,version);
+        IniSection release(version);
+
+        IniFile file = IniFile::from_file(CATCARE_RELEASES_FILE);
+        if(file.has_section(version)) {
+            std::cout << "There is already such a release available! Maybe a typo?\n";
+            return 1;
+        }
+
+        std::string path_notes;
+        std::string input = "";
+        std::cout << "Patchnotes: (:quit to exit)\n";
+        while(true) {
+            std::cout << ">>";
+            std::getline(std::cin,input);
+            if(input == ":q" || input == ":quit" || input == ":exit" || input == ":e") break;
+            for(size_t i = 0; i < input.size(); ++i) {
+                if(input[i] == '"' || input[i] == '\'') {
+                    input.insert(input.begin()+i,'\\');
+                    ++i;
+                }
+            }
+            path_notes += input + "\n";
+        }
+
+        release["path_notes"] = path_notes;
+        time_t t = time(NULL);
+        tm* ctm = localtime(&t);
+        release["date"] = 
+            std::to_string(ctm->tm_year + 1900) + "/" +
+            std::to_string(ctm->tm_mon + 1) + "/" + 
+            std::to_string(ctm->tm_mday) + " " +
+            std::to_string(ctm->tm_hour) + ":" +
+            std::to_string(ctm->tm_min) + ":" +
+            std::to_string(ctm->tm_sec);
+        
+        file.sections.push_back(release);
+        file.to_file(CATCARE_RELEASES_FILE);
+        std::cout << "\nSuccess! Changes successfully released!\n";
+    }
+    else if(pargs("add") != "") {
+        make_checklist();
+        std::filesystem::path file = std::filesystem::path(pargs("add"));
+        std::string current = "";
+        IniList list = get_filelist();
+        int added = 0;
+        for(auto i : file) {
+            std::string p;
+            if(current != "") 
+                p += current + CATCARE_DIRSLASH;
+            p += i.string();
+            if(!std::filesystem::exists(p)) continue;
+            if(std::filesystem::is_directory(p)) 
+                p = "$" + p;
+
+            bool found = false;
+            for(auto j : list) {
+                if(j.get_type() == IniType::String && (std::string)j == p) {
+                    found = true;
+                }
+            }
+
+            if(!found) {
+                IniElement elem;
+                elem = p;
+                list.push_back(elem);
+                p.erase(p.begin());
+                if(current != "")
+                    current += CATCARE_DIRSLASH;
+                current += i.string();
+                ++added;
+            }
+        }
+        if(added == 0) {
+            std::cout << "No files or directories were added!\n";
+        }
+        else {
+            set_filelist(list);
+            std::cout << "File added! (New entries: " << added << ")\n";
+        }
+    }
+    else if(pargs("whatsnew") != "") {
+        std::string proj = pargs("whatsnew");
+        proj = to_lowercase(app_username(proj));
+
+        std::filesystem::create_directory(CATCARE_TMPDIR);
+        if(!download_page(CATCARE_REPOFILE(proj,CATCARE_RELEASES_FILE),CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_RELEASES_FILE)) {
+            print_message("ERROR","Unable to download releases info!");
+            return 1;
+        }
+        if(!download_page(CATCARE_REPOFILE(proj,CATCARE_CHECKLISTNAME),CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_CHECKLISTNAME)) {
+            print_message("ERROR","Unable to download checklist info!");
+            return 1;
+        }
+        IniFile file = IniFile::from_file(CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_CHECKLISTNAME);
+        if(!file || !file.has("version","Info") || file.get("version","Info").get_type() != IniType::String
+                 || !file.has("name","Info") || file.get("name","Info").get_type() != IniType::String) {
+            print_message("ERROR","The main cat_checklist.inipp seems to be corrupted! Contact the maintainer if possible, or check your internet connection!");
+            return 1;
+        }
+
+        std::string version = (std::string)file.get("version","Info");
+        std::string name = (std::string)file.get("name","Info");
+        file = IniFile::from_file(CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_RELEASES_FILE);
+        
+        if(!file.has_section(version)) {
+            print_message("ERROR","The releases.inipp from this project does not contain any data for the current most recent version! Oh no!");
+            return 1;
+        }
+        IniSection data = file.section(version);
+
+        if(!data.has("date") || !data.has("path_notes")) {
+            print_message("ERROR","The releases.inipp data for the latest version seems to be incomplete!");
+            return 1;
+        }
+        IniElement date = data["date"];
+        IniElement path_notes = data["path_notes"];
+
+        if(date.get_type() != IniType::String || path_notes.get_type() != IniType::String) {
+            print_message("ERROR","The releases.inipp data for the latest version is invalid!");
+            return 1;
+        }
+        std::cout << "Name: " << name << "\n";
+        std::cout << "Version: " << version << "\n";
+        std::cout << "Release from date: " << (std::string)date << "\n";
+        std::cout << "Notes:\n" << (std::string)path_notes << "\n";
         std::filesystem::remove_all(CATCARE_TMPDIR);
     }
     else {

@@ -264,3 +264,18 @@ void make_checklist() {
         make_file(CATCARE_CHECKLISTNAME,"[Info]\nname=\"\"\n\n[Download]\ndependencies=[]\nfiles=[]\n");
     }
 }
+
+IniList get_filelist() {
+    if(std::filesystem::exists(CATCARE_CHECKLISTNAME)) {
+        IniFile file = IniFile::from_file(CATCARE_CHECKLISTNAME);
+        return file.get("files","Download");
+    }
+    return IniList();
+}
+void set_filelist(IniList list) {
+    if(std::filesystem::exists(CATCARE_CHECKLISTNAME)) {
+        IniFile file = IniFile::from_file(CATCARE_CHECKLISTNAME);
+        file.set("files",list,"Download");
+        file.to_file(CATCARE_CHECKLISTNAME);
+    }
+}

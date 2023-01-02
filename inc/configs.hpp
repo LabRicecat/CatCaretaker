@@ -30,4 +30,7 @@ IniList get_dependencylist();
 
 void make_checklist();
 
+IniList get_filelist();
+void set_filelist(IniList list);
+
 #endif

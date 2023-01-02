@@ -50,6 +50,8 @@ inline void cat_sleep(unsigned int mili) { Sleep(mili); }
 #define CATCARE_BROWSING_FILE "browsing.inipp"
 #define CATCARE_BROWSE_OFFICIAL CATCARE_REPOFILE("labricecat/catcaretaker",CATCARE_BROWSING_FILE)
 
+#define CATCARE_RELEASES_FILE "releases.inipp"
+
 void download_dependencies(IniList list);
 
 std::string download_repo(std::string name);
