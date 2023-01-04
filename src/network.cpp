@@ -193,7 +193,7 @@ std::string download_repo(std::string install) {
                         .add_extract('\n');
                     auto lexed = line_lexer.lex(source);
                     std::cout << "> Q to exit, S to stop download, enter to continue\n";
-                    std::cout << "================> Script " << (std::string)i << " << lines: " << lexed.back().line << "\n";
+                    std::cout << "================> Script " << (std::string)i << " | lines: " << lexed.back().line << "\n";
                     std::string inp;
                     int l = 0;
                     do {
