@@ -10,7 +10,6 @@
 #include <pwd.h>
 
 bool download_page(std::string url, std::string file) {
-    // std::cout << "Downloading " << url << "\n";
     CURL *curl;
     FILE *fp;
     CURLcode res;
@@ -178,13 +177,14 @@ std::string download_repo(std::string install) {
 
         for(auto i : scripts) {
             if(i.get_type() == IniType::String) {
-                if(download_page(CATCARE_REPOFILE(install,(std::string)i),CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + (std::string)i)) {
-                    print_message("ERROR","Failed to download script: " + (std::string)i);
+                print_message("DOWNLOAD","Downloading script: " + (std::string)i);
+                if(!download_page(CATCARE_REPOFILE(install,(std::string)i),CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + (std::string)i)) {
+                    print_message("ERROR","Failed to download script!");
                     continue;
                 }
 
                 std::string source;
-                std::ifstream ifile(CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + (std::string)i);
+                std::ifstream ifile(CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + (std::string)i);
                 while(ifile.good()) source += ifile.get();
                 if(source != "") source.pop_back();
 
@@ -192,7 +192,7 @@ std::string download_repo(std::string install) {
                     KittenLexer line_lexer = KittenLexer()
                         .add_extract('\n');
                     auto lexed = line_lexer.lex(source);
-                    std::cout << "(Q to exit, B to break)\n";
+                    std::cout << "> Q to exit, S to stop download, enter to continue\n";
                     std::cout << "================> Script " << (std::string)i << " << lines: " << lexed.back().line << "\n";
                     std::string inp;
                     int l = 0;
@@ -203,8 +203,8 @@ std::string download_repo(std::string install) {
                         }
                         ++l;
                         std::getline(std::cin,inp);
-                    } while(inp != "q" && inp != "Q" && inp != "b" && inp != "B" && l == lexed.size());
-                    if(inp == "B" || inp == "B") {
+                    } while(inp != "q" && inp != "Q" && inp != "S" && inp != "S" && l == lexed.size());
+                    if(inp == "s" || inp == "S") {
                         print_message("INFO","\nExiting download");
                         CLEAR_ON_ERR();
                         return "";
