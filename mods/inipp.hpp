@@ -328,6 +328,7 @@ public:
             .add_backslashopt('n','\n')
             .add_backslashopt('r','\r')
             .add_backslashopt('\\','\\')
+            .add_backslashopt('"','"')
             .add_ignore(' ')
             .add_ignore('\t')
             .add_linebreak('\n')
