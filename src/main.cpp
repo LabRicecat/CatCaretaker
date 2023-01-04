@@ -73,7 +73,7 @@ int main(int argc,char** argv) {
         .addArg("release",ARG_TAG,{},0)
         .addArg("add",ARG_SET,{},0)
         .addArg("whatsnew",ARG_SET,{},0)
-        .addArg("run",ARG_SET,{},0)
+        // .addArg("run",ARG_SET,{},0)
         .addArg("template",ARG_SET,{},0)
 
         .addArg("blacklist",ARG_TAG,{},0)
