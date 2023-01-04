@@ -8,3 +8,14 @@ path_notes = "- added option \"release\"
 "
 date = "2023/1/2 15:24:43"
 
+[1.2.0]
+path_notes = "- added carescript, a DSL to customize the downloading process
+- added option \"blacklist\"
+- added option \"template\"
+- added config option \"show_script_src\"
+- added config option \"no_scripts\"
+- option \"release\" now updates automatically the \"version\" info in the cat_checklist.inipp
+- fixed bug with option \"add\" not working correctly
+"
+date = "2023/1/4 11:45:13"
+

@@ -89,6 +89,8 @@ std::tuple<std::string,std::string> get_username(std::string str) {
             el += i;
         }
     }
+    if(ret == "") { ret = el; el = ""; }
+    else if(el != "") { el.pop_back(); }
     return std::make_tuple(el,ret);
 }
 

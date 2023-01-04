@@ -33,4 +33,6 @@ void make_checklist();
 IniList get_filelist();
 void set_filelist(IniList list);
 
+bool blacklisted(std::string repo);
+
 #endif

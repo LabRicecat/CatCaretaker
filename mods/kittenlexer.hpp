@@ -220,7 +220,7 @@ public:
                 if(i+1 != src.size()) {
                     char n = src[i+1];
                     if(backslash_opts.count(n) != 0) tmp += backslash_opts[n];
-                    else tmp += n;
+                    else tmp += "\\" + std::string(1,n);
                     ++i;
                 }
                 else {

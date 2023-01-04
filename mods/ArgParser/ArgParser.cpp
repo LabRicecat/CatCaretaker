@@ -95,9 +95,7 @@ bool ParsedArgs::has_bin() const {
 
 size_t ArgParser::find(std::string name, bool& failed) {
     for(size_t i = 0; i < args.size(); ++i) {
-        LOG(":" << args[i].name << " == " << name)
         if(args[i].name == name || args[i].hasAlias(name)) {
-            LOG("found!")
             failed = false;
             return i;
         }
@@ -107,7 +105,6 @@ size_t ArgParser::find(std::string name, bool& failed) {
 }
 
 size_t ArgParser::find_next_getarg(bool& failed) {
-    LOG("unusedGetArgs:" << unusedGetArgs)
     if(unusedGetArgs == 0) {
         failed = true;
         return 0;

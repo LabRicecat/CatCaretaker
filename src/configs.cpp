@@ -43,13 +43,13 @@ static std::string read(std::string path) {
 	return re;
 }
 
-void make_file(std::string name, std::string std) {
+void make_file(std::string name, std::string stdc) {
     std::ofstream of;
     of.open(name,std::ios::trunc);
     of.close();
-    if(std != "") {
+    if(stdc != "") {
         of.open(name,std::ios::app);
-        of << std;
+        of << stdc;
         of.close();
     }
 }
@@ -63,7 +63,7 @@ void reset_localconf() {
     std::ofstream of;
     make_file(CATCARE_CONFIGFILE);
     of.open(CATCARE_CONFIGFILE,std::ios::app);
-    of << "options={}\nredirects={}\n";
+    of << "options = {}\nredirects = {}\nblacklist = []\n";
     of.close();
 }
 
@@ -121,6 +121,8 @@ IniDictionary extract_configs(std::string name) {
         ret["version"] = file.get("version","Info");
     if(file.has("dependencies","Download"))
         ret["dependencies"] = file.get("dependencies","Download");
+    if(file.has("scripts","Download"))
+        ret["scripts"] = file.get("scripts","Download");
     return ret;
 }
 
@@ -278,4 +280,13 @@ void set_filelist(IniList list) {
         file.set("files",list,"Download");
         file.to_file(CATCARE_CHECKLISTNAME);
     }
+}
+
+bool blacklisted(std::string repo) {
+    IniFile file = IniFile::from_file(CATCARE_CONFIGFILE);
+    IniList l = file.get("blacklist");
+    for(auto i : l) {
+        if(i.get_type() == IniType::String && (std::string)i == repo) return true;
+    }
+    return false;
 }

@@ -2,6 +2,8 @@
 #include "../inc/configs.hpp"
 #include "../inc/options.hpp"
 
+#include "../carescript/carescript.hpp"
+
 #ifdef __linux__
 #include <curl/curl.h>
 #include <unistd.h>
@@ -107,6 +109,9 @@ std::string download_repo(std::string install) {
     make_register();
     make_checklist();
     install = to_lowercase(install);
+    if(blacklisted(install)) {
+        return "This repo is blacklisted!";
+    }
     auto [usr,name] = get_username(install);
     if(usr == "") usr = CATCARE_USER;
     install = app_username(install);
@@ -164,6 +169,55 @@ std::string download_repo(std::string install) {
             if(!download_page(CATCARE_REPOFILE(install,file),CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + file)) {
                 CLEAR_ON_ERR()
                 return "Error downloading file: " + file;
+            }
+        }
+    }
+
+    if(conf.count("scripts") != 0 && option_or("no_scripts","false") == "false") {
+        IniList scripts = conf["scripts"].to_list();
+
+        for(auto i : scripts) {
+            if(i.get_type() == IniType::String) {
+                if(download_page(CATCARE_REPOFILE(install,(std::string)i),CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + (std::string)i)) {
+                    print_message("ERROR","Failed to download script: " + (std::string)i);
+                    continue;
+                }
+
+                std::string source;
+                std::ifstream ifile(CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + (std::string)i);
+                while(ifile.good()) source += ifile.get();
+                if(source != "") source.pop_back();
+
+                if(option_or("show_script_src","false") == "true") {
+                    KittenLexer line_lexer = KittenLexer()
+                        .add_extract('\n');
+                    auto lexed = line_lexer.lex(source);
+                    std::cout << "(Q to exit, B to break)\n";
+                    std::cout << "================> Script " << (std::string)i << " << lines: " << lexed.back().line << "\n";
+                    std::string inp;
+                    int l = 0;
+                    do {
+                        while(lexed[l].src != "\n" && l != lexed.size()-1) {
+                            std::cout << lexed[l].line << ": " << lexed[l].src;
+                            ++l;
+                        }
+                        ++l;
+                        std::getline(std::cin,inp);
+                    } while(inp != "q" && inp != "Q" && inp != "b" && inp != "B" && l == lexed.size());
+                    if(inp == "B" || inp == "B") {
+                        print_message("INFO","\nExiting download");
+                        CLEAR_ON_ERR();
+                        return "";
+                    }
+                    std::cout << "================> Enter to continue...";
+                    std::getline(std::cin,inp);
+                }
+
+                print_message("INFO","Entering CCScript: \"" + (std::string)i + "\"");
+                std::string err = run_script(source);
+                if(err != "") {
+                    print_message("ERROR","Script failed: " + err);
+                }
             }
         }
     }

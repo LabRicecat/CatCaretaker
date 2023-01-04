@@ -1,6 +1,7 @@
 #include "../inc/configs.hpp"
 #include "../inc/options.hpp"
 #include "../mods/ArgParser/ArgParser.h"
+#include "../carescript/carescript.hpp"
 
 #include <time.h>
 
@@ -24,6 +25,8 @@ void print_help() {
             << "   guide                        :  starts a little config questionary.\n"
             << "   setup <name>                 :  sets up a checklist for a project.\n"
             << "   release                      :  set up a release note easily.\n"
+            << "   template [list]              :  create a template file.\n"       
+            << "   blacklist [append|pop|show]  :  blacklsit certain projects.\n"  
             << "   sync                         :  reinstalls all the dependencies of the current project.\n\n"
             << "flags := \n"
             << "   --help|-h                  :  prints this and exits.\n"
@@ -70,6 +73,14 @@ int main(int argc,char** argv) {
         .addArg("release",ARG_TAG,{},0)
         .addArg("add",ARG_SET,{},0)
         .addArg("whatsnew",ARG_SET,{},0)
+        .addArg("run",ARG_SET,{},0)
+        .addArg("template",ARG_SET,{},0)
+
+        .addArg("blacklist",ARG_TAG,{},0)
+        .addArg("append",ARG_SET,{},1)
+        .addArg("pop",ARG_SET,{},1)
+        .addArg("show",ARG_TAG,{},1)
+
         .addArg("--silent",ARG_TAG,{"-s"})
     ;
 
@@ -91,7 +102,10 @@ int main(int argc,char** argv) {
         opt_silence = true;
     }
 
-    if(pargs("download") != "") {
+    if((pargs("append") != "" || pargs("pop") != "" || pargs["show"]) && !pargs["blacklist"]) {
+        print_help();
+    }
+    else if(pargs("download") != "") {
         std::string error;
         std::string repo = pargs("download");
         repo = to_lowercase(repo);
@@ -226,10 +240,11 @@ int main(int argc,char** argv) {
             << "default_branch  :  The default branch for the projects. (default: main)\n"
             << "install_dir     :  The directory it installs the projects into. (default: catmods)\n"
             << "install_url     :  The url we try to download from. (default: https://raw.githubusercontent.com/)\n"
-            << "default_silent  :  If \"true\" -> `--silent` will be enabled by default. (default: false)\n"
-            << "local_over_url  :  If \"true\" -> local redirects get priorities when it comes to dependencies (default: false)\n"
-            << "clear_on_error  :  If \"true\" -> clears the downloading project if an error occurs. (default: true)\n"
-            ;
+            << "default_silent  :  If true -> `--silent` will be enabled by default. (default: false)\n"
+            << "local_over_url  :  If true -> local redirects get priorities when it comes to dependencies (default: false)\n"
+            << "clear_on_error  :  If true -> clears the downloading project if an error occurs. (default: true)\n"
+            << "show_script_src :  If true -> open a little lookup when a new script gets executed. (default: false)\n"
+            << "no_scripts      :  If true -> stops all scripts from executing. (Warning: not recomended, default: false)\n";
 
         }
         else {
@@ -258,7 +273,7 @@ int main(int argc,char** argv) {
     }
     else if(pargs("setup") != "") {
         std::string name = pargs("setup");
-
+        make_register();
         make_checklist();
         IniFile f = IniFile::from_file(CATCARE_CHECKLISTNAME);
         f.set("name",name,"Info");
@@ -271,7 +286,7 @@ int main(int argc,char** argv) {
             std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + (std::string)i);
             remove_from_register((std::string)i);
         }
-        download_dependencies(get_dependencylist());
+        download_dependencies(deps);
     }
     else if(pargs("check") != "") {
         std::string proj = pargs("check");
@@ -365,7 +380,7 @@ int main(int argc,char** argv) {
             std::getline(std::cin,input);
             if(input == ":q" || input == ":quit" || input == ":exit" || input == ":e") break;
             for(size_t i = 0; i < input.size(); ++i) {
-                if(input[i] == '"' || input[i] == '\'') {
+                if(input[i] == '"' || input[i] == '\'' || input[i] == '\\') {
                     input.insert(input.begin()+i,'\\');
                     ++i;
                 }
@@ -386,6 +401,10 @@ int main(int argc,char** argv) {
         
         file.sections.push_back(release);
         file.to_file(CATCARE_RELEASES_FILE);
+
+        file = IniFile::from_file(CATCARE_CHECKLISTNAME);
+        file.set("version",version,"Info");
+        file.to_file(CATCARE_CHECKLISTNAME);
         std::cout << "\nSuccess! Changes successfully released!\n";
     }
     else if(pargs("add") != "") {
@@ -414,12 +433,12 @@ int main(int argc,char** argv) {
                 IniElement elem;
                 elem = p;
                 list.push_back(elem);
-                p.erase(p.begin());
-                if(current != "")
-                    current += CATCARE_DIRSLASH;
-                current += i.string();
                 ++added;
             }
+
+            if(current != "")
+                current += CATCARE_DIRSLASH;
+            current += i.string();
         }
         if(added == 0) {
             std::cout << "No files or directories were added!\n";
@@ -475,6 +494,126 @@ int main(int argc,char** argv) {
         std::cout << "Release from date: " << (std::string)date << "\n";
         std::cout << "Notes:\n" << (std::string)path_notes << "\n";
         std::filesystem::remove_all(CATCARE_TMPDIR);
+    }
+    else if(pargs("run") != "") {
+        std::string r;
+        std::ifstream f(pargs("run"));
+        while(f.good()) r += f.get();
+        if(!r.empty()) r.pop_back();
+
+        std::string err = run_script(r);
+        if(err != "") {
+            print_message("ERROR",err);
+            return 1;
+        }
+    }
+    else if(pargs("template") != "") {
+        std::string templ = pargs("template");
+        if(templ == "checklist") {
+            make_file("cat_checklist.inipp",
+            "[Info]\n"
+            "name = \"project-name\"\n"
+            "version = \"version-here\" # optional \n\n"
+            "[Download]\n"
+            "files = [] # append files manually or use `catcare add <file>`\n"
+            "dependencies = [] # append manually and sync or use `catcare get <user>/<project>`\n"
+            "scripts = [] # optional\n");
+            print_message("INFO","Template successfully created as cat_checklist.inipp");
+        }
+        else if(templ == "script") {
+            make_file("script.ccs",
+            "echo(\"Hello Script\") # print text\n"
+            "add(FILE,\"name\") # create a file\n\n"
+            "if(WINDOWS) # check for a specific OS\n"
+            "add(DEPENDENCY,\"name\") # download a dependency\n"
+            "endif() # end of the if from above\n\n"
+            "project_info(NAME,name)\n"
+            "project_info(VERSION,version)\n"
+            "echo(\"project: \" + $name + \" version: \" + $version)\n\n"
+            "# look at the wiki for more information about carescript\n");
+            print_message("INFO","Template successfully created as script.css");
+        }
+        else if(templ == "browsing") {
+            make_file("browsing.inipp",
+            "[Main]\n"
+            "browsing = {\n"
+                "\tPROJECT_NAME: {\n"
+                    "\t\tdescription: \"short description of the project.\",\n"
+                    "\t\tlanguage: \"python/C/...\",\n"
+                    "\t\tauthor: \"username of the author\",\n"
+                "\t},\n"
+            "}\n\n"
+            "# keep PROJECT_NAME and \"author\" the same as the github user and project\n"
+            "# so it can be directly downloaded\n"
+            );
+            print_message("INFO","Template successfully created as browsing.inipp");
+        }
+        else if(templ == "list") {
+            std::cout << "Available templates:\n"
+                << "  checklist -> creates a template cat_checklist.inipp\n"
+                << "  script -> creates a template script.ccs\n"
+                << "  browsing -> creates a template browsing.inipp\n";
+        }
+        else {
+            print_message("ERROR","Unknown template: " + templ);
+        }
+    }
+    else if(pargs["blacklist"]) {
+        if(pargs("append") == "" && pargs("pop") == "" && !pargs["show"]) {
+            print_help();
+        }
+
+        if(pargs("append") != "") {
+            std::string entry = pargs("append");
+            entry = app_username(to_lowercase(entry));
+            if(blacklisted(entry)) {
+                std::cout << "This repo is already blacklisted!\n";
+                return 0;
+            }
+            IniFile file = IniFile::from_file(CATCARE_CONFIGFILE);
+            IniList list = file.get("blacklist");
+            list.push_back(entry);
+            file.set("blacklist",list);
+            file.to_file(CATCARE_CONFIGFILE);
+            std::cout << "Successfully added!\n";
+        }
+        else if(pargs("pop") != "") {
+            std::string entry = pargs("pop");
+            entry = app_username(to_lowercase(entry));
+            if(!blacklisted(entry)) {
+                std::cout << "This repo is not blacklisted!\n";
+                return 0;
+            }
+            IniFile file = IniFile::from_file(CATCARE_CONFIGFILE);
+            IniList list = file.get("blacklist");
+            for(size_t i = 0; i < list.size(); ++i) {
+                if(list[i].get_type() == IniType::String && (std::string)list[i] == entry) {
+                    list.erase(list.begin()+i);
+                    break;
+                }
+            }
+            file.set("blacklist",list);
+            file.to_file(CATCARE_CONFIGFILE);
+            std::cout << "Successfully removed!\n";
+        }
+        else {
+            IniFile file = IniFile::from_file(CATCARE_CONFIGFILE);
+            IniList list = file.get("blacklist");
+
+            if(list.empty()) {
+                std::cout << "No repos blacklisted!\n";
+            }
+            else {
+                std::cout << "Blacklist: \n";
+                for(auto i : list) {
+                    if(i.get_type() == IniType::String) {
+                        std::cout << "-> " << (std::string)i << "\n";
+                    }
+                }
+            }
+        }
+
+        write_localconf();
     }
     else {
         print_help();

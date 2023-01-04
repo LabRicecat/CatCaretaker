@@ -15,6 +15,8 @@ set(SOURCE
     src/options.cpp 
 
     mods/ArgParser/ArgParser.cpp 
+
+    carescript/carescript.cpp 
     )
 
 add_executable(${BINARY} ${SOURCE})
