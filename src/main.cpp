@@ -356,6 +356,10 @@ int main(int argc,char** argv) {
     else if(pargs["sync"]) {
         print_message("DOWNLOAD","Syncronising the dependencies...");
         IniList deps = get_dependencylist();
+        if(std::filesystem::exists(CATCARE_ROOT)) {
+            std::filesystem::remove_all(CATCARE_ROOT);
+        }
+        make_register();
         for(auto i : deps) {
             std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + (std::string)i);
             remove_from_register((std::string)i);

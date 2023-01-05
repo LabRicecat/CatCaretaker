@@ -148,7 +148,7 @@ bool browse(std::string file) {
         std::string repo = (std::string)entries[current]["author"] + "/" + (std::string)entries[current]["name"];
         repo = to_lowercase(repo);
 
-        std::cout << ">> "<< entries[current]["name"] << " <<\n";
+        std::cout << ">>> "<< entries[current]["name"] << " (" << (current+1) << " of " << entries.size() << ") <<<\n";
         print_entry(entries[current]);
 
         std::cout << "\n\n== ";
