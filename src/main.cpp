@@ -22,7 +22,7 @@ void print_help() {
             << "   check [.all|<project>]       :  checks if for PROJECT is a new version available.\n"
             << "   browse [official|<repo>]     :  view a browsing file showing of different projects.\n"
             << "   whatsnew <project>           :  read the latest patch notes of a project.\n"
-            << "   guide                        :  starts a little config questionary.\n"
+            << "   guide                        :  cli walkthrough tutorial for the CatCaretaker.\n"
             << "   setup <name>                 :  sets up a checklist for a project.\n"
             << "   release                      :  set up a release note easily.\n"
             << "   template [list]              :  create a template file.\n"       
@@ -252,23 +252,97 @@ int main(int argc,char** argv) {
         }
     }
     else if(pargs["guide"]) {
-        std::cout << "Welcome to the CatCaretaker guide.\nI will ask some question for setup purpose.\nIf you want to select the default option, press enter with no input.\n\n";
-        
-        std::cout << "What is your github username (default: Labricecat): ";
-        std::string username = ask_and_default("Labricecat");
+        int t = 1;
+#define CATGUIDE_HEADER() std::cout << "========> CatCaretaker guide (" << t++ << " of 12)\n"
+        cat_clsscreen();
+        std::cout << "Welcome to the CatCaretaker guide.\n";
+        std::cout << "Explaination:\n"
+        << "-> text in [] leaves options to pick from.\n"
+        << "-> text in <> is a value to be replaced by the user.\n"
+        << "-> text with a $ before it must be run in the shell.\n";
+        await_continue();
 
-        std::cout << "\nWhat branch should be used for the projects (default: main): ";
-        std::string branch = ask_and_default("main");
+        CATGUIDE_HEADER();
+        std::cout << "First of all, what's your github username? (this will be set as default user)\n=> ";
+        std::string username = to_lowercase(ask_and_default("Labricecat"));
+        std::cout << "Hello " << username << "! Thanks for using the CatCaretaker!\n";
+        cat_sleep(2000);
+        cat_clsscreen();
 
-        std::cout << "\nWhat should be the name for the project directory be (default: catmods): ";
-        std::string instdir = ask_and_default("catmods");
+        CATGUIDE_HEADER();
+        std::cout << "The CatCaretaker is a tool to reuse already created projects to create new ones faster.\n"
+        << "To download such a project from github:\n"
+        << " $ catcare download " << username << "/<project>\n"
+        << "This will download all files and create a `catmods/<project>` folder where all of them are stored.\n";
+        await_continue();
 
-        std::cout << "\nGreat! That's everything I need.\nFor more use `config explain`.";
+        CATGUIDE_HEADER();
+        std::cout << "You can also remove a project easily by running:\n"
+        << " $ catcare remove [.all|<project>]\n"
+        << "By doing this, it will also be removed from the dependency-list.\n"
+        << "If you want to cleanup all the dependency files without removing them as dependency, run:\n"
+        << " $ catcare cleanup\n"
+        << "This can be useful if you want to minimize the storage usage\n";
+        await_continue();
+
+        CATGUIDE_HEADER();
+        std::cout << "To quickly setup your own project as a downloadable catcare-repository simply run:\n"
+        << " $ catcare setup <project-name>\n"
+        << "This creates a `cat_checklist.inipp` where all the data about the project are stores.\n";
+        await_continue();
+
+        CATGUIDE_HEADER();
+        std::cout << "Your `cat_checklist.inipp` contains an entry called `files`, \n"
+        << "this is the list of files the CatCaretaker will download.\n"
+        << "But instead of adding them manually, you can use this command:\n"
+        << " $ catcare add <path>\n"
+        << "This will also add all the directories on the way there.\n";
+        await_continue();
+
+        CATGUIDE_HEADER();
+        std::cout << "Not sure if any of your dependencies needs an update?\n"
+        << "try:\n"
+        << " $ catcare check [.all|<project>]\n"
+        << "If the main repository has a newer version available, it will tell you about it.\n";
+        await_continue();
+
+        CATGUIDE_HEADER();
+        std::cout << "To download the newest version of each dependency run:\n"
+        << " $ catcare sync\n"
+        << "You can also read the latest patch notes of a project by doing:\n"
+        << " $ catcare whatsnew <project>\n"
+        << "Note that this will only work if the target project contains a releases.inipp!\n";
+        await_continue();
+
+        CATGUIDE_HEADER();
+        std::cout << "Releases are a feature of the CatCaretaker as mentioned before,\n"
+        << "to create your own, simply do:\n"
+        << " $ catcare release\n"
+        << "This will ask you a few questions and generate a `releases.inipp` afterwards!\n";
+        await_continue();
+
+        CATGUIDE_HEADER();
+        std::cout << "Not sure what to download? There is always the option to browse through a project-list.\n"
+        << "You can view such a list with:\n"
+        << " $ catcare browse [official|<repository>]\n"
+        << "`official` downloads the `browsing.inipp` directly from the CatCaretaker repository.\n";
+        await_continue();
+
+        CATGUIDE_HEADER();
+        std::cout << "Customization is also possible, check out:\n"
+        << " $ catcare config explain\n"
+        << " $ catcare option <option> to <value>\n"
+        << "...to view all available settings and set them globally.\n";
+        await_continue();
+
+        CATGUIDE_HEADER();
+        std::cout << "This is the end of the guide, if you have any more questions,\n"
+        << "have a look at the github repository: https://github.com/LabRicecat/CatCaretaker\n"
+        << "or run `$ catcare --help`.\n\n"
+        << "Thanks for using the CatCaretaker!\n";
+        await_continue();
 
         options["username"] = username;
-        options["default_branch"] = branch;
-        options["install_dir"] = instdir;
-
         write_localconf();
     }
     else if(pargs("setup") != "") {

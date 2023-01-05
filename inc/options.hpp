@@ -20,6 +20,7 @@ bool confirmation(std::string context);
 
 std::string ask_and_default(std::string defau);
 std::string option_or(std::string option, std::string els);
+void await_continue();
 std::string app_username(std::string str);
 std::string last_name(std::filesystem::path path);
 std::string to_lowercase(std::string str);

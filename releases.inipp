@@ -1,21 +1,26 @@
 [Main]
 
 [1.1.2]
-path_notes = "- added option \"release\"
-- added option \"add\"
-- added option \"whatsnew\"
-- added options for \"browse\" to install and uninstall projects
+path_notes = "- added option "release"
+- added option "add"
+- added option "whatsnew"
+- added options for "browse" to install and uninstall projects
 "
 date = "2023/1/2 15:24:43"
 
 [1.2.0]
 path_notes = "- added carescript, a DSL to customize the downloading process
-- added option \"blacklist\"
-- added option \"template\"
-- added config option \"show_script_src\"
-- added config option \"no_scripts\"
-- option \"release\" now updates automatically the \"version\" info in the cat_checklist.inipp
-- fixed bug with option \"add\" not working correctly
+- added option "blacklist"
+- added option "template"
+- added config option "show_script_src"
+- added config option "no_scripts"
+- option "release" now updates automatically the "version" info in the cat_checklist.inipp
+- fixed bug with option "add" not working correctly
 "
 date = "2023/1/4 11:45:13"
+
+[1.2.1]
+path_notes = "- improved option \"guide\" to a full tutorial
+"
+date = "2023/1/5 11:29:15"
 

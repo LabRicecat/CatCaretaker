@@ -39,6 +39,14 @@ std::string ask_and_default(std::string defau) {
     return inp;
 }
 
+void await_continue() {
+    std::cout << "(Enter to continue...)\n";
+    std::flush(std::cout);
+    std::string s;
+    std::getline(std::cin,s);
+    cat_clsscreen();
+}
+
 std::string option_or(std::string option, std::string els) {
     if(options.count(option) > 0) {
         return options[option];
