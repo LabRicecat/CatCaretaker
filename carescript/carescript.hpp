@@ -5,6 +5,7 @@
 
 #include <cmath>
 #include <fstream>
+#include <filesystem>
 
 struct ScriptVariable {
     enum class Type {

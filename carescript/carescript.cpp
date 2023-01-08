@@ -741,7 +741,7 @@ std::map<std::string,ScriptBuiltin> script_builtins = {
             return "too many arguments";
         }
 
-        settings.error_msg = run_script(args[0].name,settings.labels,run_args);
+        settings.error_msg = run_script(args[0].name,settings.labels,"",run_args);
         settings.raw_error = true;
         return "";
     }}},

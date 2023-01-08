@@ -110,7 +110,7 @@ bool download_scripts(IniList scripts,std::string install, std::string name, std
         if(i.get_type() == IniType::String) {
             print_message("DOWNLOAD","Downloading script: " + (std::string)i);
             if(!labels.empty()) {
-                std::string err = run_script("download_script",labels,{
+                std::string err = run_script("download_script",labels,"",{
                     usr,
                     name,
                     (std::string)i,
@@ -190,13 +190,13 @@ std::string download_repo(std::string install) {
 
         auto labels = into_labels(s);
 
-        std::string err = run_script("init",labels,{
+        std::string err = run_script("init",labels,"",{
             usr, // username
             name, // project-name
         });
         IFERR(err);
         
-        err = run_script("download_checklist",labels,{
+        err = run_script("download_checklist",labels,"",{
             usr, // user
             name, // project
             CATCARE_CHECKLISTNAME, // filename
@@ -239,7 +239,7 @@ std::string download_repo(std::string install) {
                 }
                 std::string ufile = last_name(file);
                 print_message("DOWNLOAD","Downloading file: " + ufile);
-                run_script("download_file",labels,{
+                run_script("download_file",labels,"",{
                     usr,
                     name,
                     file,
@@ -249,7 +249,7 @@ std::string download_repo(std::string install) {
             }
             else {
                 print_message("DOWNLOAD","Downloading file: " + file);
-                run_script("download_file",labels,{
+                run_script("download_file",labels,"",{
                     usr,
                     name,
                     file,
@@ -267,7 +267,7 @@ std::string download_repo(std::string install) {
             }
         }
 
-        err = run_script("finish",labels,{
+        err = run_script("finish",labels,"",{
             usr, // username
             name, // project-name
         });
