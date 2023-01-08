@@ -131,6 +131,12 @@ bool valid_configs(IniDictionary conf) {
 }
 
 std::string config_healthcare(IniDictionary conf) {
+    if(conf.count("name") == 0) {
+        return "\"name\" is required!";
+    }
+    if(conf.count("files") == 0) {
+        return "\"files\" is required!";
+    }
     if(conf["name"].get_type() != IniType::String) {
         return "\"name\" must be a string!";
     }

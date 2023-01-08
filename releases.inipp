@@ -24,3 +24,9 @@ path_notes = "- improved option \"guide\" to a full tutorial
 "
 date = "2023/1/5 11:29:15"
 
+[1.3.0]
+path_notes = "- added labels to catcarescript
+- added the posibility for a \"downloads.ccs\" in the catcare-home directory to change download behavior
+"
+date = "2023/1/8 14:12:42"
+

@@ -36,6 +36,8 @@ void print_help() {
     std::exit(0);
 }
 
+// #define DEBUG
+
 int main(int argc,char** argv) {
     if(!std::filesystem::exists(CATCARE_HOME)) {
         reset_localconf();
@@ -73,7 +75,9 @@ int main(int argc,char** argv) {
         .addArg("release",ARG_TAG,{},0)
         .addArg("add",ARG_SET,{},0)
         .addArg("whatsnew",ARG_SET,{},0)
-        // .addArg("run",ARG_SET,{},0)
+#ifdef DEBUG
+        .addArg("run",ARG_SET,{},0)
+#endif
         .addArg("template",ARG_SET,{},0)
 
         .addArg("blacklist",ARG_TAG,{},0)
@@ -82,6 +86,9 @@ int main(int argc,char** argv) {
         .addArg("show",ARG_TAG,{},1)
 
         .addArg("--silent",ARG_TAG,{"-s"})
+#ifdef DEBUG
+        .addArg("--debug",ARG_TAG,{"-d"})
+#endif
     ;
 
     std::atexit([](){
@@ -97,7 +104,20 @@ int main(int argc,char** argv) {
     if(!pargs || pargs["--help"]) {
         print_help();
     }
-
+#ifdef DEBUG
+    if(pargs["--debug"]) {
+        std::string r;
+        std::ifstream ifile("download.ccs");
+        while(ifile.good()) r += ifile.get();
+        if(!r.empty()) r.pop_back();
+        auto labels = into_labels(r);
+        for(auto i : labels) {
+            std::cout << i.first << " args: " << i.second.arglist.size() << " lines: " << i.second.lines.size() << "\n";
+            std::cout << run_script(i.first,labels) << "\n";
+        }
+        return 0;
+    }
+#endif
     if(pargs["--silent"]) {
         opt_silence = true;
     }
@@ -573,6 +593,7 @@ int main(int argc,char** argv) {
         std::cout << "Notes:\n" << (std::string)path_notes << "\n";
         std::filesystem::remove_all(CATCARE_TMPDIR);
     }
+#ifdef DEBUG    
     else if(pargs("run") != "") {
         std::string r;
         std::ifstream f(pargs("run"));
@@ -585,6 +606,7 @@ int main(int argc,char** argv) {
             return 1;
         }
     }
+#endif
     else if(pargs("template") != "") {
         std::string templ = pargs("template");
         if(templ == "checklist") {

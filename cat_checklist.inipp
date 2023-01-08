@@ -2,9 +2,10 @@
 
 [Info]
 name = "catcaretaker"
-version = "1.2.1"
+version = "1.3.0"
 
 [Download]
 dependencies = []
 files = ["$src","$inc","$mods","$mods/ArgParser","inc/configs.hpp","inc/network.hpp","inc/options.hpp","src/configs.cpp","src/network.cpp","src/options.cpp","mods/ArgParser/ArgParser.h","mods/ArgParser/ArgParser.cpp","mods/inipp.hpp","mods/kittenlexer.hpp","$carescript","carescript/carescript.cpp","carescript/carescript.hpp"]
 scripts = ["script.ccs"]
+

@@ -31,6 +31,7 @@ inline void cat_clsscreen() { system("cls"); }
 inline void cat_sleep(unsigned int mili) { Sleep(mili); }
 #endif
 
+#define CATCARE_DOWNLOADSCRIPT CATCARE_HOME "downloads.ccs"
 #define CATCARE_CONFIGFILE CATCARE_HOME "config.inipp"
 #define CATCARE_TMPDIR CATCARE_HOME "tmp"
 #define CATCARE_USER option_or("username","LabRiceCat")

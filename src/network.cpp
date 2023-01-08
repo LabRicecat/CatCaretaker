@@ -103,6 +103,67 @@ void download_dependencies(IniList list) {
 }
 
 #define CLEAR_ON_ERR() if(option_or("clear_on_error","true") == "true") {std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);}
+#define IFERR(err) if(err != "") { CLEAR_ON_ERR(); return err; }
+
+bool download_scripts(IniList scripts,std::string install, std::string name, std::string usr, std::map<std::string,ScriptLabel> labels = {}) {
+    for(auto i : scripts) {
+        if(i.get_type() == IniType::String) {
+            print_message("DOWNLOAD","Downloading script: " + (std::string)i);
+            if(!labels.empty()) {
+                std::string err = run_script("download_script",labels,{
+                    usr,
+                    name,
+                    (std::string)i,
+                    CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + (std::string)i
+                });
+                if(err != "") {
+                    print_message("ERROR","Download Script failed: " + err);
+                }
+            }
+            else if(!download_page(CATCARE_REPOFILE(install,(std::string)i),CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + (std::string)i)) {
+                print_message("ERROR","Failed to download script!");
+                continue;
+            }
+
+            std::string source;
+            std::ifstream ifile(CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + (std::string)i);
+            while(ifile.good()) source += ifile.get();
+            if(source != "") source.pop_back();
+
+            if(option_or("show_script_src","false") == "true") {
+                KittenLexer line_lexer = KittenLexer()
+                    .add_extract('\n');
+                auto lexed = line_lexer.lex(source);
+                std::cout << "> Q to exit, S to stop download, enter to continue\n";
+                std::cout << "================> Script " << (std::string)i << " | lines: " << lexed.back().line << "\n";
+                std::string inp;
+                int l = 0;
+                do {
+                    while(lexed[l].src != "\n" && l != lexed.size()-1) {
+                        std::cout << lexed[l].line << ": " << lexed[l].src;
+                        ++l;
+                    }
+                    ++l;
+                    std::getline(std::cin,inp);
+                } while(inp != "q" && inp != "Q" && inp != "S" && inp != "S" && l == lexed.size());
+                if(inp == "s" || inp == "S") {
+                    print_message("INFO","\nExiting download");
+                    CLEAR_ON_ERR();
+                    return true;
+                }
+                std::cout << "================> Enter to continue...";
+                std::getline(std::cin,inp);
+            }
+
+            print_message("INFO","Entering CCScript: \"" + (std::string)i + "\"");
+            std::string err = run_script(source);
+            if(err != "") {
+                print_message("ERROR","Script failed: " + err);
+            }
+        }
+    }
+    return false;
+}
 
 std::string download_repo(std::string install) {
     make_register();
@@ -119,9 +180,113 @@ std::string download_repo(std::string install) {
     }
     std::filesystem::create_directories(CATCARE_ROOT + CATCARE_DIRSLASH + name);
     std::filesystem::create_symlink(".." CATCARE_DIRSLASH ".." CATCARE_DIRSLASH + CATCARE_ROOT, CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + CATCARE_ROOT);
+    
+    if(std::filesystem::exists(CATCARE_DOWNLOADSCRIPT)) {
+        std::ifstream ifile(CATCARE_DOWNLOADSCRIPT);
+        std::string s;
+        while(ifile.good()) s += ifile.get();
+        if(!s.empty()) s.pop_back();
+        if(s.empty()) goto DEFAULT_DOWNLOAD;
+
+        auto labels = into_labels(s);
+
+        std::string err = run_script("init",labels,{
+            usr, // username
+            name, // project-name
+        });
+        IFERR(err);
+        
+        err = run_script("download_checklist",labels,{
+            usr, // user
+            name, // project
+            CATCARE_CHECKLISTNAME, // filename
+            CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + CATCARE_CHECKLISTNAME, // destination
+        });
+        IFERR(err);
+
+        IniDictionary conf = extract_configs(name);
+        if(!valid_configs(conf)) {
+            CLEAR_ON_ERR()
+            return config_healthcare(conf);
+        }
+        IniList files = conf["files"].to_list();
+
+        for(auto i : files) {
+            if(i.get_type() != IniType::String) {
+                continue;
+            }
+            std::string file = (std::string)i;
+            if(file.size() == 0) {
+                continue;
+            }
+
+            if(file[0] == '$') {
+                file.erase(file.begin());
+                if(file.empty()) {
+                    continue;
+                }
+                print_message("DOWNLOAD","Adding dictionary: " + file);
+                std::filesystem::create_directory(CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + file);
+                continue;
+            }
+            else if(file[0] == '#') {
+                continue;
+            }
+            else if(file[0] == '!') {
+                file.erase(file.begin());
+                if(file.empty()) {
+                    continue;
+                }
+                std::string ufile = last_name(file);
+                print_message("DOWNLOAD","Downloading file: " + ufile);
+                run_script("download_file",labels,{
+                    usr,
+                    name,
+                    file,
+                    CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + ufile,
+                });
+                IFERR(err);
+            }
+            else {
+                print_message("DOWNLOAD","Downloading file: " + file);
+                run_script("download_file",labels,{
+                    usr,
+                    name,
+                    file,
+                    CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + file,
+                });
+                IFERR(err);
+            }
+        }
+
+        if(conf.count("scripts") != 0 && option_or("no_scripts","false") == "false") {
+            IniList scripts = conf["scripts"].to_list();
+
+            if(download_scripts(scripts,install,name,usr,labels)) {
+                return "";
+            }
+        }
+
+        err = run_script("finish",labels,{
+            usr, // username
+            name, // project-name
+        });
+        IFERR(err);
+        
+
+        if(!installed(install)) {
+            add_to_register(install);
+        }
+
+        download_dependencies(conf["dependencies"].to_list());
+
+        return "";
+    }
+DEFAULT_DOWNLOAD:
     if(!download_page(CATCARE_REPOFILE(install,CATCARE_CHECKLISTNAME),CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH CATCARE_CHECKLISTNAME)) {
         CLEAR_ON_ERR()
         return "Could not download checklist!";
+    
     }
     IniDictionary conf = extract_configs(name);
     if(!valid_configs(conf)) {
@@ -175,50 +340,8 @@ std::string download_repo(std::string install) {
     if(conf.count("scripts") != 0 && option_or("no_scripts","false") == "false") {
         IniList scripts = conf["scripts"].to_list();
 
-        for(auto i : scripts) {
-            if(i.get_type() == IniType::String) {
-                print_message("DOWNLOAD","Downloading script: " + (std::string)i);
-                if(!download_page(CATCARE_REPOFILE(install,(std::string)i),CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + (std::string)i)) {
-                    print_message("ERROR","Failed to download script!");
-                    continue;
-                }
-
-                std::string source;
-                std::ifstream ifile(CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + (std::string)i);
-                while(ifile.good()) source += ifile.get();
-                if(source != "") source.pop_back();
-
-                if(option_or("show_script_src","false") == "true") {
-                    KittenLexer line_lexer = KittenLexer()
-                        .add_extract('\n');
-                    auto lexed = line_lexer.lex(source);
-                    std::cout << "> Q to exit, S to stop download, enter to continue\n";
-                    std::cout << "================> Script " << (std::string)i << " | lines: " << lexed.back().line << "\n";
-                    std::string inp;
-                    int l = 0;
-                    do {
-                        while(lexed[l].src != "\n" && l != lexed.size()-1) {
-                            std::cout << lexed[l].line << ": " << lexed[l].src;
-                            ++l;
-                        }
-                        ++l;
-                        std::getline(std::cin,inp);
-                    } while(inp != "q" && inp != "Q" && inp != "S" && inp != "S" && l == lexed.size());
-                    if(inp == "s" || inp == "S") {
-                        print_message("INFO","\nExiting download");
-                        CLEAR_ON_ERR();
-                        return "";
-                    }
-                    std::cout << "================> Enter to continue...";
-                    std::getline(std::cin,inp);
-                }
-
-                print_message("INFO","Entering CCScript: \"" + (std::string)i + "\"");
-                std::string err = run_script(source);
-                if(err != "") {
-                    print_message("ERROR","Script failed: " + err);
-                }
-            }
+        if(download_scripts(scripts,install,name,usr)) {
+            return "";
         }
     }
 
