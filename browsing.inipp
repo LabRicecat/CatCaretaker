@@ -1,7 +1,7 @@
 [Main]
 browsing={
     CatTypes: {
-        description: "Simple adjustable token alnlyzing tool",
+        description: "Simple adjustable token analyzing tool",
         language: "C++",
         author:"CatCaretaker",
     },
