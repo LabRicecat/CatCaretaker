@@ -35,7 +35,7 @@ inline void cat_sleep(unsigned int mili) { Sleep(mili); }
 #define CATCARE_CONFIGFILE CATCARE_HOME "config.inipp"
 #define CATCARE_TMPDIR CATCARE_HOME "tmp"
 #define CATCARE_MACRODIR CATCARE_HOME "macros"
-#define CATCARE_USER option_or("username","LabRiceCat")
+#define CATCARE_USER option_or("username","NOBODY")
 #define CATCARE_USERREPO(x) option_or("install_url","https://raw.githubusercontent.com/") + x
 
 #define CATCARE_BRANCH option_or("default_branch","main")

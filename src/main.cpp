@@ -245,7 +245,7 @@ int main(int argc,char** argv) {
         }
         else if(opt == "explain") {
             std::cout << "Config options:\n"
-            << "username        :  The github username. (default: LabRicecat)\n"
+            << "username        :  The github username.\n"
             << "default_branch  :  The default branch for the projects. (default: main)\n"
             << "install_dir     :  The directory it installs the projects into. (default: catmods)\n"
             << "install_url     :  The url we try to download from. (default: https://raw.githubusercontent.com/)\n"
@@ -273,7 +273,7 @@ int main(int argc,char** argv) {
 
         CATGUIDE_HEADER();
         std::cout << "First of all, what's your github username? (this will be set as default user)\n=> ";
-        std::string username = to_lowercase(ask_and_default("Labricecat"));
+        std::string username = to_lowercase(ask_and_default("NOBODY"));
         std::cout << "Hello " << username << "! Thanks for using the CatCaretaker!\n";
         cat_sleep(2000);
         cat_clsscreen();
