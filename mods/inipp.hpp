@@ -213,7 +213,15 @@ public:
     inline operator IniVector() { return IniHelper::to_vector(src); }
     inline operator IniDictionary() { return IniHelper::to_dictionary(src); }
     inline operator std::string() { 
-        if(type == IniType::String) return src.substr(1,src.size()-2);
+        if(type == IniType::String) {
+            for(size_t i = 1; i < src.size()-1; ++i) {
+                if(src[i] == '\"') {
+                    src.erase(src.begin()+i-1);
+                    --i;
+                }
+            }
+            return src.substr(1,src.size()-2);
+        }
         return src;
     }
 };
