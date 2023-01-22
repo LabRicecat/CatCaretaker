@@ -132,22 +132,18 @@ bool download_scripts(IniList scripts,std::string install, std::string name, std
 
             if(option_or("show_script_src","false") == "true") {
                 KittenLexer line_lexer = KittenLexer()
-                    .add_extract('\n');
+                    .add_linebreak('\n');
                 auto lexed = line_lexer.lex(source);
                 std::cout << "> Q to exit, S to stop download, enter to continue\n";
                 std::cout << "================> Script " << (std::string)i << " | lines: " << lexed.back().line << "\n";
                 std::string inp;
-                int l = 0;
-                do {
-                    while(lexed[l].src != "\n" && l != lexed.size()-1) {
-                        std::cout << lexed[l].line << ": " << lexed[l].src;
-                        ++l;
-                    }
-                    ++l;
+                for(auto i : lexed) {
+                    std::cout << i.line << ": " << i.src;
                     std::getline(std::cin,inp);
-                } while(inp != "q" && inp != "Q" && inp != "S" && inp != "S" && l == lexed.size());
+                    if(inp == "q" || inp == "Q" || inp == "s" || inp == "S") break;
+                }
                 if(inp == "s" || inp == "S") {
-                    print_message("INFO","\nExiting download");
+                    print_message("INFO","\nStopping download");
                     CLEAR_ON_ERR();
                     return true;
                 }
@@ -199,7 +195,7 @@ std::string download_repo(std::string install) {
         err = run_script("download_checklist",labels,"",{
             usr, // user
             name, // project
-            CATCARE_CHECKLISTNAME, // filename
+            (ScriptVariable)CATCARE_CHECKLISTNAME, // filename
             CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH + CATCARE_CHECKLISTNAME, // destination
         });
         IFERR(err);

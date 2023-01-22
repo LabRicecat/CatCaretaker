@@ -189,6 +189,11 @@ public:
     
     // This, other then IniElement(std::string), constructs a string!
     inline IniElement operator=(std::string str) {
+        for(size_t i = 0; i < str.size(); ++i)
+            if(str[i] == '\"') {
+                str.insert(str.begin()+i,'\\');
+                ++i;
+            }
         src = "\"" + str + "\"";
         type = IniType::String;
         return *this;
@@ -679,6 +684,11 @@ namespace IniHelper {
             return IniElement(IniType::Null,"NULL");
         }
         if(source.front() == '"' && source.back() == '"') {
+            for(size_t i = 1; i < source.size()-1; ++i)
+                if(source[i] == '\"') {
+                    source.insert(source.begin()+i,'\\');
+                    ++i;
+                }
             return IniElement(IniType::String,source);
         }
         

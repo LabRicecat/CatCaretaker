@@ -23,4 +23,7 @@ add_executable(${BINARY} ${SOURCE})
 
 if(UNIX)
 target_link_libraries(${BINARY} curl)
+target_compile_options(${BINARY} PUBLIC -g)
 endif()
+
+install(TARGETS ${BINARY})

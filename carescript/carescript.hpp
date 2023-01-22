@@ -22,7 +22,6 @@ struct ScriptVariable {
     ScriptVariable() {}
     ScriptVariable(long double num): number(num) { type = Type::Number; }
     ScriptVariable(std::string str): string(str) { type = Type::String; }
-    ScriptVariable(const char* str): string(str) { type = Type::String; }
     ScriptVariable(Type ty): type(ty) { }
 };
 
@@ -50,6 +49,7 @@ struct ScriptSettings {
     std::map<std::string,ScriptLabel> labels;
     std::filesystem::path parent_path;
     int ignore_endifs = 0;
+    ScriptVariable return_value = script_null;
 
     std::string error_msg;
     bool raw_error = false;
@@ -89,7 +89,7 @@ using ScriptArglist = std::vector<ScriptVariable>;
 
 struct ScriptBuiltin {
     int arg_count = -1;
-    std::string(*exec)(ScriptArglist,ScriptSettings&);
+    ScriptVariable(*exec)(ScriptArglist,ScriptSettings&);
 };
 
 struct ScriptLabel {
@@ -99,6 +99,7 @@ struct ScriptLabel {
 
 std::string run_script(std::string source);
 std::string run_script(std::string label_name, std::map<std::string,ScriptLabel> label, std::filesystem::path parent_path = "", std::vector<ScriptVariable> args = {});
+std::string run_script(std::string label_name, std::map<std::string,ScriptLabel> labels, std::filesystem::path parent_path , std::vector<ScriptVariable> args, ScriptSettings& settings);
 std::map<std::string,ScriptLabel> into_labels(std::string source);
 std::vector<ScriptVariable> parse_argumentlist(std::string source, ScriptSettings& settings);
 ScriptVariable evaluate_expression(std::string source, ScriptSettings& settings);

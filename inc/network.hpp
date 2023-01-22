@@ -34,6 +34,7 @@ inline void cat_sleep(unsigned int mili) { Sleep(mili); }
 #define CATCARE_DOWNLOADSCRIPT CATCARE_HOME "downloads.ccs"
 #define CATCARE_CONFIGFILE CATCARE_HOME "config.inipp"
 #define CATCARE_TMPDIR CATCARE_HOME "tmp"
+#define CATCARE_MACRODIR CATCARE_HOME "macros"
 #define CATCARE_USER option_or("username","LabRiceCat")
 #define CATCARE_USERREPO(x) option_or("install_url","https://raw.githubusercontent.com/") + x
 
@@ -48,10 +49,11 @@ inline void cat_sleep(unsigned int mili) { Sleep(mili); }
 
 #define CATCARE_ROOT option_or("install_dir","catmods")
 
+#define CATCARE_RELEASES_FILE "releases.inipp"
 #define CATCARE_BROWSING_FILE "browsing.inipp"
 #define CATCARE_BROWSE_OFFICIAL CATCARE_REPOFILE("labricecat/catcaretaker",CATCARE_BROWSING_FILE)
 
-#define CATCARE_RELEASES_FILE "releases.inipp"
+#define CATCARE_CARESCRIPT_EXT ".ccs"
 
 void download_dependencies(IniList list);
 

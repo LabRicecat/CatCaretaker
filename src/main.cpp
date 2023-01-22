@@ -27,6 +27,7 @@ void print_help() {
             << "   release                      :  set up a release note easily.\n"
             << "   template [list]              :  create a template file.\n"       
             << "   blacklist [append|pop|show]  :  blacklsit certain projects.\n"  
+            << "   macro <macro> <args...>      :  runs a macro file.\n"
             << "   sync                         :  reinstalls all the dependencies of the current project.\n\n"
             << "flags := \n"
             << "   --help|-h                  :  prints this and exits.\n"
@@ -75,6 +76,8 @@ int main(int argc,char** argv) {
         .addArg("release",ARG_TAG,{},0)
         .addArg("add",ARG_SET,{},0)
         .addArg("whatsnew",ARG_SET,{},0)
+        .addArg("macro",ARG_SET,{},0)
+        .setbin()
 #ifdef DEBUG
         .addArg("run",ARG_SET,{},0)
 #endif
@@ -104,25 +107,11 @@ int main(int argc,char** argv) {
     if(!pargs || pargs["--help"]) {
         print_help();
     }
-#ifdef DEBUG
-    if(pargs["--debug"]) {
-        std::string r;
-        std::ifstream ifile("download.ccs");
-        while(ifile.good()) r += ifile.get();
-        if(!r.empty()) r.pop_back();
-        auto labels = into_labels(r);
-        for(auto i : labels) {
-            std::cout << i.first << " args: " << i.second.arglist.size() << " lines: " << i.second.lines.size() << "\n";
-            std::cout << run_script(i.first,labels) << "\n";
-        }
-        return 0;
-    }
-#endif
     if(pargs["--silent"]) {
         opt_silence = true;
     }
 
-    if((pargs("append") != "" || pargs("pop") != "" || pargs["show"]) && !pargs["blacklist"]) {
+    if((pargs("append") != "" || pargs("pop") != "" || pargs["show"]) && !pargs["blacklist"] || (pargs.has_bin() && pargs("macro") == "")) {
         print_help();
     }
     else if(pargs("download") != "") {
@@ -477,12 +466,6 @@ int main(int argc,char** argv) {
             std::cout << ">>";
             std::getline(std::cin,input);
             if(input == ":q" || input == ":quit" || input == ":exit" || input == ":e") break;
-            for(size_t i = 0; i < input.size(); ++i) {
-                if(input[i] == '"' || input[i] == '\'' || input[i] == '\\') {
-                    input.insert(input.begin()+i,'\\');
-                    ++i;
-                }
-            }
             path_notes += input + "\n";
         }
 
@@ -568,13 +551,13 @@ int main(int argc,char** argv) {
 
         std::string version = (std::string)file.get("version","Info");
         std::string name = (std::string)file.get("name","Info");
-        file = IniFile::from_file(CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_RELEASES_FILE);
+        IniFile release_file = IniFile::from_file(CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_RELEASES_FILE);
         
-        if(!file.has_section(version)) {
+        if(!release_file.has_section(version)) {
             print_message("ERROR","The releases.inipp from this project does not contain any data for the current most recent version! Oh no!");
             return 1;
         }
-        IniSection data = file.section(version);
+        IniSection data = release_file.section(version);
 
         if(!data.has("date") || !data.has("path_notes")) {
             print_message("ERROR","The releases.inipp data for the latest version seems to be incomplete!");
@@ -714,6 +697,79 @@ int main(int argc,char** argv) {
         }
 
         write_localconf();
+    }
+    else if(pargs("macro") != "") {
+        std::string macro = pargs("macro");
+        if(!std::filesystem::exists(CATCARE_MACRODIR)) {
+            std::filesystem::create_directory(CATCARE_MACRODIR);
+        }
+
+        if(macro == ".list") {
+            std::cout << "Installed macros:\n";
+            for(auto i : std::filesystem::directory_iterator(CATCARE_MACRODIR CATCARE_DIRSLASH)) {
+                std::cout << i.path().string() << "\n";
+            }
+            return 0;
+        }
+
+        if(!std::filesystem::exists(CATCARE_MACRODIR CATCARE_DIRSLASH + macro + CATCARE_CARESCRIPT_EXT)) {
+            std::cout << "No such macro: " << (macro + CATCARE_CARESCRIPT_EXT) << "\n"
+            << "Check " << (CATCARE_MACRODIR CATCARE_DIRSLASH) << " to see if it's installed!\n";
+            return 1;
+        }
+
+        ScriptSettings settings;
+        settings.line = 1;
+        ScriptArglist args;
+        for(auto i : pargs.get_bin()) {
+            args.push_back(ScriptVariable(i));
+        }
+        
+        std::string r;
+        std::ifstream ifile(CATCARE_MACRODIR CATCARE_DIRSLASH + macro + CATCARE_CARESCRIPT_EXT);
+        while(ifile.good()) r += ifile.get();
+        if(r != "") r.pop_back();
+
+        auto labels = into_labels(r);
+
+        if(labels.count("macro_call") == 0) {
+            std::cout << "Invalid macro file! No \"macro_call\" label found! (at " << (CATCARE_MACRODIR CATCARE_DIRSLASH + macro + CATCARE_CARESCRIPT_EXT) << "\n";
+            return 1;
+        }
+        auto call = labels["macro_call"];
+        
+        if(call.arglist.size() != args.size()) {
+            std::cout << "Invalid arguments!\nExpected: [";
+            std::string p;
+            for(auto i : call.arglist) {
+                p += i + ", ";
+            }
+            if(p != "") { p.pop_back(); p.pop_back(); }
+            std::cout << p << "]\n";
+            std::cout << "But got:";
+            p = "";
+            for(auto i : args) {
+                switch(i.type) {
+                    case ScriptVariable::Type::Name:
+                        p += i.name; break;
+                    case ScriptVariable::Type::String:
+                        p += "\"" + i.string + "\""; break;
+                    case ScriptVariable::Type::Number:
+                        p += std::to_string(i.number); break;
+                    default:
+                        p += "null";
+                }
+                p += ", ";
+            }
+            if(p != "") { p.pop_back(); p.pop_back(); }
+            std::cout << "[" << p << "]\n";
+            return 1;
+        }
+    
+        std::string err = run_script("macro_call",labels,CATCARE_MACRODIR CATCARE_DIRSLASH + macro + CATCARE_CARESCRIPT_EXT,args);
+        if(err != "") {
+            print_message("ERROR",err);
+        }
     }
     else {
         print_help();
