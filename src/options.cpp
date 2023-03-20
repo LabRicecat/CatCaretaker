@@ -63,6 +63,7 @@ std::string to_lowercase(std::string str) {
 #define MUST_HAVE(entry, member) if(entry.count(member) == 0)
 
 void print_entry(IniDictionary config) {
+    if(config.count("description") != 0) std::cout << (std::string)config["description"] << "\n";
     if(config.count("version") != 0) std::cout << "Version: " << (std::string)config["version"] << "\n";
     if(config.count("license") != 0) std::cout << "License: " << (std::string)config["license"] << "\n";
     if(config.count("documentation") != 0) std::cout << "Documentation: " << (std::string)config["documentation"] << "\n";

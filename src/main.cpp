@@ -697,7 +697,9 @@ int main(int argc,char** argv) {
             make_file(CATCARE_CHECKLISTNAME,R"(
 [Info]
 name = "project-name"
-version = "version-here" # optional
+# optional
+version = "0.0.0"
+description = ""
 
 [Download]
 files = [] # append files manually or use `catcare add <file>`
