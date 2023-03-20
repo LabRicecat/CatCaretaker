@@ -1,22 +1,10 @@
 #include "../inc/options.hpp"
 #include "../inc/network.hpp"
 #include "../inc/configs.hpp"
-
-bool is_redirected(std::string name) {
-    return local_redirect.count(name) > 0;
-}
-void make_redirect(std::string name, std::string path) {
-    if(is_redirected(name)) {
-        if(!confirmation("redefine the aleady existing redirect for \"" + name + "\" ?")) {
-            return;
-        }
-    }
-    local_redirect[name] = path;
-}
-
+#include <set>
 
 void print_message(std::string mod, std::string message) {
-    if(!opt_silence)
+    if(!arg_settings::opt_silence)
         std::cout << "[" << mod << "] " << message << "\n";
 }
 
@@ -40,7 +28,7 @@ std::string ask_and_default(std::string defau) {
 }
 
 void await_continue() {
-    std::cout << "(Enter to continue...)\n";
+    std::cout << "(Enter to continue...)\r";
     std::flush(std::cout);
     std::string s;
     std::getline(std::cin,s);
@@ -52,14 +40,6 @@ std::string option_or(std::string option, std::string els) {
         return options[option];
     }
     return els;
-}
-
-std::string app_username(std::string str) {
-    auto [usr,name] = get_username(str);
-    if(usr != "") {
-        return str;
-    }
-    return to_lowercase(CATCARE_USER) + "/" + str;
 }
 
 std::string last_name(std::filesystem::path path) {
@@ -79,64 +59,90 @@ std::string to_lowercase(std::string str) {
     return ret;
 }
 
-std::tuple<std::string,std::string> get_username(std::string str) {
-    while(!str.empty() && str.back() == '/') str.pop_back();
-    
-    std::string ret;
-    std::string el;
-    bool sw = false;
-    for(auto i : str) {
-        if(i == '/') {
-            sw = true;
-            el += ret + "/";
-        }
-        else if(sw) {
-            ret += i;
-        }
-        else {
-            el += i;
-        }
-    }
-    if(ret == "") { ret = el; el = ""; }
-    else if(el != "") { el.pop_back(); }
-    return std::make_tuple(el,ret);
-}
-
 #define TYPE_CHECK(entry, type) if(entry.get_type() != type)
 #define MUST_HAVE(entry, member) if(entry.count(member) == 0)
 
-void print_entry(IniDictionary current) {
-    std::string repo = (std::string)current["author"] + "/" + (std::string)current["name"];
-    repo = to_lowercase(repo);
-    std::cout << "Description: " << current["description"] << "\n"
-        << "Written for language: " << current["language"] << "\n"
-        << "By " << current["author"] << "\n"
-        << "Installed: " << (installed(repo) ? "Yes" : "No") << "\n";
+void print_entry(IniDictionary config) {
+    if(config.count("version") != 0) std::cout << "Version: " << (std::string)config["version"] << "\n";
+    if(config.count("license") != 0) std::cout << "License: " << (std::string)config["license"] << "\n";
+    if(config.count("documentation") != 0) std::cout << "Documentation: " << (std::string)config["documentation"] << "\n";
+    if(config.count("tags") != 0 && config["authors"].to_list().size() != 0) {
+        std::cout << "Authors: \n";
+        for(auto i : config["authors"].to_list()) {
+            std::cout << " - " << (std::string)i << "\n";
+        }
+    }
+    if(config.count("authors") != 0 && config["authors"].to_list().size() != 0) {
+        std::cout << "Authors: \n";
+        IniList list = config["authors"].to_list();
+        for(size_t i = 0; i < list.size(); ++i) {
+            if(i != 0) std::cout << ", ";
+            std::cout << (std::string)list[i];
+        }
+        std::cout << "\n";
+    }
+    if(config.count("tags") != 0 && config["tags"].to_list().size() != 0) {
+       std::cout << "Tags: \n";
+        IniList list = config["tags"].to_list();
+        for(size_t i = 0; i < list.size(); ++i) {
+            if(i != 0) std::cout << ", ";
+            std::cout << (std::string)list[i];
+        }
+        std::cout << "\n";
+    }
+    if(config.count("scripts") != 0 && config["scripts"].to_list().size() != 0) {
+       std::cout << "Scripts: \n";
+        IniList list = config["scripts"].to_list();
+        for(size_t i = 0; i < list.size(); ++i) {
+            if(i != 0) std::cout << ", ";
+            std::cout << (std::string)list[i];
+        }
+        std::cout << "\n";
+    }
+    if(config.count("dependencies") != 0 && config["dependencies"].to_list().size() != 0) {
+        std::cout << "Dependencies: \n";
+        for(auto i : config["dependencies"].to_list()) {
+            std::cout << " - " << (std::string)i << "\n";
+        }
+    }
+    std::cout << "Installed: " << (installed((std::string)config["__url"]) ? "Yes" : "No") << "\n";
 }
 
-bool browse(std::string file) {
+void collect_from(std::vector<IniDictionary>& src, IniFile file, std::string name, std::set<std::string>& used) {
+    if(used.contains(name)) return;
+    used.insert(name);
+    if(!file || !file.has("browsing","Main")) return;
+    IniList browsing = file.get("browsing").to_list();
+
+    for(size_t i = 0; i < browsing.size(); ++i) {
+        if(browsing[i].get_type() == IniType::String) {
+            std::cout << "\rCollecting entries... " << i << " of " << browsing.size() << " from " << name;
+            std::flush(std::cout);
+            IniDictionary entry = extract_configs(download_checklist((std::string)browsing[i]));
+            if(entry.empty()) continue;
+            entry["__url"] = (std::string)browsing[i];
+            src.push_back(entry);
+        }
+    }
+
+    if(file.has("include","Main")) {
+        IniList include = file.get("include","Main").to_list();
+        for(auto i : include) {
+            if(!download_page((std::string)i,CATCARE_TMP_PATH CATCARE_DIRSLASH CATCARE_BROWSING_FILE "-" + name)) continue;
+            IniFile f = IniFile::from_file(CATCARE_TMP_PATH CATCARE_DIRSLASH CATCARE_BROWSING_FILE "-" + name);
+            std::filesystem::remove_all(CATCARE_TMP_PATH CATCARE_DIRSLASH CATCARE_BROWSING_FILE "-" + name);
+            collect_from(src,f,(std::string)i,used);
+        }
+    }
+}
+
+bool browse(std::string file, std::string url) {
     IniFile inifile = IniFile::from_file(file);
 
-    if(!inifile || !inifile.has("browsing","Main")) return false;
-    IniElement browsing_e = inifile.get("browsing");
-    TYPE_CHECK(browsing_e,IniType::Dictionary) return false;
-
-    IniDictionary browsing = browsing_e.to_dictionary();
-
     std::vector<IniDictionary> entries;
-
-    for(auto i : browsing) {
-        TYPE_CHECK(i.second,IniType::Dictionary) continue;
-        IniDictionary entry = i.second.to_dictionary();
-        MUST_HAVE(entry,"description") continue;
-        TYPE_CHECK(entry["description"],IniType::String) continue;
-        MUST_HAVE(entry,"language") continue;
-        TYPE_CHECK(entry["language"],IniType::String) continue;
-        MUST_HAVE(entry,"author") continue;
-        TYPE_CHECK(entry["author"],IniType::String) continue;
-        entry["name"] = i.first;
-        entries.push_back(entry);
-    }
+    std::set<std::string> used;
+    collect_from(entries,inifile,url,used);
+    std::cout << "\n";
 
     if(entries.empty()) return false;
     
@@ -145,8 +151,7 @@ bool browse(std::string file) {
     while(!exit) {
         cat_clsscreen();
 
-        std::string repo = (std::string)entries[current]["author"] + "/" + (std::string)entries[current]["name"];
-        repo = to_lowercase(repo);
+        std::string link = (std::string)entries[current]["__url"];
 
         std::cout << ">>> "<< entries[current]["name"] << " (" << (current+1) << " of " << entries.size() << ") <<<\n";
         print_entry(entries[current]);
@@ -158,7 +163,7 @@ bool browse(std::string file) {
         if(current != 0) {
             std::cout << "[p]revious, ";
         }
-        if(installed(repo)) {
+        if(installed(link)) {
             std::cout << "[u]ninstall, ";
         }
         else {
@@ -174,25 +179,25 @@ bool browse(std::string file) {
         else if((inp == "p" || inp == "P" || inp == "previous") && current != 0) {
             --current;
         }
-        else if((inp == "i" || inp == "I" || inp == "install") && !installed(repo)) {
-            std::string error = download_repo(repo);
+        else if((inp == "i" || inp == "I" || inp == "install") && !installed(link)) {
+            std::string error = download_project(link);
 
             if(error != "")
-                print_message("ERROR","Error downloading repo: \"" + repo + "\"\n-> " + error);
+                print_message("ERROR","Error while downloading project: \"" + (std::string)entries[current]["name"] + "\"\n-> " + error);
             else {
                 print_message("RESULT","Successfully installed!");
-                if(!is_dependency(repo)) {
-                    add_to_dependencylist(repo);
+                if(!is_dependency(link)) {
+                    add_to_dependencylist(link);
                 }
             }
             cat_sleep(1000);
         }
-        else if((inp == "u" || inp == "U" || inp == "uninstall") && installed(repo)) {
+        else if((inp == "u" || inp == "U" || inp == "uninstall") && installed(link)) {
             std::string name = to_lowercase(entries[current]["name"]);
             std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);
-            remove_from_register(repo);
-            remove_from_dependencylist(repo);
-            print_message("DELETE","Removed repo: \"" + repo + "\"");
+            remove_from_register(link);
+            remove_from_dependencylist(link);
+            print_message("DELETE","Removed project: \"" + (std::string)entries[current]["name"] + "\"");
             cat_sleep(1000);
         }
         else if(inp == "e" || inp == "E" || inp == "exit") {

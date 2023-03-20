@@ -9,6 +9,7 @@
 
 #include "../mods/inipp.hpp"
 #include "options.hpp"
+#include "../inc/pagelist.hpp"
 
 std::string get_username();
 bool download_page(std::string url, std::string file);
@@ -17,48 +18,50 @@ bool download_page(std::string url, std::string file);
 
 #ifdef __linux__
 # include <unistd.h>
-# define CATCARE_HOME "/home/" + get_username() + "/." CATCARE_PROGNAME "/"
+# define CATCARE_HOME "/home/" + get_username() + "/.config/" CATCARE_PROGNAME "/"
 # define CATCARE_DIRSLASH "/"
 # define CATCARE_DIRSLASHc '/'
 inline void cat_clsscreen() { system("clear"); }
-inline void cat_sleep(unsigned int mili) { usleep(mili * 1000); }
+inline void cat_sleep(unsigned int mil) { usleep(mil * 1000); }
 #elif defined(_WIN32)
 # include <windows.h>
 # define CATCARE_HOME "C:\\ProgramData\\." CATCARE_PROGNAME "\\"
 # define CATCARE_DIRSLASH "\\"
 # define CATCARE_DIRSLASHc '\\'
 inline void cat_clsscreen() { system("cls"); }
-inline void cat_sleep(unsigned int mili) { Sleep(mili); }
+inline void cat_sleep(unsigned int mil) { Sleep(mil); }
 #endif
 
-#define CATCARE_DOWNLOADSCRIPT CATCARE_HOME "downloads.ccs"
-#define CATCARE_CONFIGFILE CATCARE_HOME "config.inipp"
-#define CATCARE_TMPDIR CATCARE_HOME "tmp"
-#define CATCARE_MACRODIR CATCARE_HOME "macros"
-#define CATCARE_USER option_or("username","NOBODY")
-#define CATCARE_USERREPO(x) option_or("install_url","https://raw.githubusercontent.com/") + x
+#define CATCARE_URLRULES_FILENAME "urlrules.ccr"
+#define CATCARE_URLRULES_FILE CATCARE_HOME CATCARE_URLRULES_FILENAME
+#define CATCARE_CONFIG_FILENAME "config.inipp"
+#define CATCARE_CONFIG_FILE CATCARE_HOME CATCARE_CONFIG_FILENAME
+#define CATCARE_TMP_DIR "tmp"
+#define CATCARE_TMP_PATH CATCARE_HOME CATCARE_TMP_DIR
+#define CATCARE_MACRO_DIR "macros"
+#define CATCARE_MACRO_PATH CATCARE_HOME CATCARE_MACRO_DIR
+#define CATCARE_EXTENSION_DIR "extensions"
+#define CATCARE_EXTENSION_PATH CATCARE_HOME CATCARE_EXTENSION_DIR
+#define CATCARE_ATTACHMENT_DIR "attachments"
+#define CATCARE_ATTACHMENT_PATH CATCARE_HOME CATCARE_ATTACHMENT_DIR
 
-#define CATCARE_BRANCH option_or("default_branch","main")
-
-#define CATCARE_REPOFILE(repo,x) CATCARE_USERREPO(repo) + "/" + CATCARE_BRANCH + "/" + std::string(x) 
 
 #define CATCARE_CHECKLISTNAME "cat_checklist.inipp"
-#define CATCARE_REPO_CHECKLIST(x) CATCARE_USERREPO(x) "/" CATCARE_CHECKLISTNAME
-
 #define CATCARE_REGISTERNAME "cat_register.inipp"
-
-#define CATCARE_ROOT option_or("install_dir","catmods")
-
 #define CATCARE_RELEASES_FILE "releases.inipp"
 #define CATCARE_BROWSING_FILE "browsing.inipp"
-#define CATCARE_BROWSE_OFFICIAL CATCARE_REPOFILE("labricecat/catcaretaker",CATCARE_BROWSING_FILE)
 
+#define CATCARE_ROOT_NAME std::string("catpkgs")
+#define CATCARE_ROOT (!arg_settings::global ? CATCARE_ROOT_NAME : CATCARE_HOME + CATCARE_ROOT_NAME)
+#define CATCARE_BROWSE_OFFICIAL "https://raw.githubusercontent.com/labricecat/catcaretaker/main/" CATCARE_BROWSING_FILE
 #define CATCARE_CARESCRIPT_EXT ".ccs"
 
+
+std::vector<UrlPackage> get_download_url(std::string input);
 void download_dependencies(IniList list);
 
-std::string download_repo(std::string name);
-std::string get_local(std::string name, std::string path);
+std::string download_project(std::string url);
+IniFile download_checklist(std::string url);
 
 // new - old (new == "" when no update needed)
 std::tuple<std::string,std::string> needs_update(std::string name);

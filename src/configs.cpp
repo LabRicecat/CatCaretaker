@@ -1,5 +1,7 @@
 #include "../inc/configs.hpp"
 #include "../inc/options.hpp"
+#include "../inc/pagelist.hpp"
+#include "../carescript/carescript-api.hpp"
 
 #include <string.h>
 
@@ -54,37 +56,68 @@ void make_file(std::string name, std::string stdc) {
     }
 }
 
+std::string healthcheck_localconf() {
+    if(arg_settings::no_config) return "";
+    if(!std::filesystem::exists(CATCARE_HOME))
+        std::filesystem::create_directory(CATCARE_HOME);
+    std::ofstream of;
+    if(!std::filesystem::exists(CATCARE_CONFIG_FILE)) {   
+        make_file(CATCARE_CONFIG_FILE);
+        of.open(CATCARE_CONFIG_FILE,std::ios::app);
+        of << "options = {}\nblacklist = []\n";
+        of.close();
+    }
+    if(!std::filesystem::exists(CATCARE_ATTACHMENT_PATH))
+        std::filesystem::create_directory(CATCARE_ATTACHMENT_PATH);
+    if(!std::filesystem::exists(CATCARE_MACRO_PATH))
+        std::filesystem::create_directory(CATCARE_MACRO_PATH);
+    if(!std::filesystem::exists(CATCARE_EXTENSION_PATH))
+        std::filesystem::create_directory(CATCARE_EXTENSION_PATH);
+    if(!std::filesystem::exists(CATCARE_URLRULES_FILE))
+        make_file(CATCARE_URLRULES_FILE,R"(
+"--- urlrules.ccr ---"
+" may be changed by the user "
+
+"- DEFAULT GITHUB RULE -"
+RULE github;
+    LINK "https://raw.githubusercontent.com/{user}/{project}/{branch}/";
+    WITH user 1
+         project 2
+         branch 3;
+    SIGNS / @;
+)");
+    IniFile ifile = IniFile::from_file(CATCARE_CONFIG_FILE);
+    if(!ifile) { return "corrupted config file at " CATCARE_CONFIG_FILE; }
+    return "";
+}
+
 void reset_localconf() {
+    if(arg_settings::no_config) return;
     if(std::filesystem::exists(CATCARE_HOME)) {
         delete_localconf();
     }
-
-    std::filesystem::create_directory(CATCARE_HOME);
-    std::ofstream of;
-    make_file(CATCARE_CONFIGFILE);
-    of.open(CATCARE_CONFIGFILE,std::ios::app);
-    of << "options = {}\nredirects = {}\nblacklist = []\n";
-    of.close();
+    healthcheck_localconf();
 }
 
 void load_localconf() {
-    IniFile file = IniFile::from_file(CATCARE_CONFIGFILE);
+    if(arg_settings::no_config) return;
+    IniFile file = IniFile::from_file(CATCARE_CONFIG_FILE);
     IniDictionary s = file.get("options");
     for(auto i : s) {
         options[i.first] = (std::string)i.second;
     }
-    IniDictionary z = file.get("redirects");
-    for(auto i : z) {
-        local_redirect[i.first] = (std::string)i.second;
-    }
+    // IniDictionary b = file.get("blacklist") TODO
+    fill_global_pagelist();
 }
 
 void delete_localconf() {
+    if(arg_settings::no_config) return;
     std::filesystem::remove_all(CATCARE_HOME);
 }
 
 void write_localconf() {
-    IniFile file = IniFile::from_file(CATCARE_CONFIGFILE);
+    if(arg_settings::no_config) return;
+    IniFile file = IniFile::from_file(CATCARE_CONFIG_FILE);
     IniDictionary s = file.get("options");
     for(auto i : options) {
         IniElement elm;
@@ -92,25 +125,19 @@ void write_localconf() {
         s[i.first] = elm;
     }
     file.set("options",s);
-    IniDictionary z = file.get("redirects");
-    for(auto i : local_redirect) {
-        IniElement elm;
-        elm = i.second;
-        z[i.first] = elm;
-    }
-    file.set("redirects",z);
-    file.to_file(CATCARE_CONFIGFILE);
+    file.to_file(CATCARE_CONFIG_FILE);
 }
 
-IniDictionary extract_configs(std::string name) {
-    IniDictionary ret;
-
-    IniFile file = IniFile::from_file(CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH CATCARE_CHECKLISTNAME);
-    if(!file) {
-        return ret;
+void load_extensions(carescript::Interpreter& interp) {
+    if(arg_settings::no_config) return;
+    for(auto i : std::filesystem::recursive_directory_iterator(CATCARE_EXTENSION_PATH)) {
+        if(i.is_directory()) continue;
+        carescript::bake_extension(i.path().string(),interp.settings);
     }
+}
 
-
+IniDictionary extract_configs(IniFile file) {
+    IniDictionary ret;
     if(!file || !file.has("name","Info") || !file.has("files","Download")) {
         return ret;
     }
@@ -123,6 +150,17 @@ IniDictionary extract_configs(std::string name) {
         ret["dependencies"] = file.get("dependencies","Download");
     if(file.has("scripts","Download"))
         ret["scripts"] = file.get("scripts","Download");
+    if(file.has("description","Info"))
+        ret["description"] = file.get("description","Info");
+    if(file.has("tags","Info"))
+        ret["tags"] = file.get("tags","Info");
+    if(file.has("authors","Info"))
+        ret["authors"] = file.get("authors","Info");
+    if(file.has("license","Info"))
+        ret["license"] = file.get("license","Info");
+    if(file.has("documentation","Info"))
+        ret["documentation"] = file.get("documentation","Info");
+
     return ret;
 }
 
@@ -131,24 +169,20 @@ bool valid_configs(IniDictionary conf) {
 }
 
 std::string config_healthcare(IniDictionary conf) {
-    if(conf.count("name") == 0) {
-        return "\"name\" is required!";
-    }
-    if(conf.count("files") == 0) {
-        return "\"files\" is required!";
-    }
-    if(conf["name"].get_type() != IniType::String) {
-        return "\"name\" must be a string!";
-    }
-    if(conf.count("dependencies") != 0 && conf["dependencies"].get_type() != IniType::List) {
-        return "\"dependencies\" must be a list!";
-    }
-    if(conf["files"].get_type() != IniType::List) {
-        return "\"files\" must be a list!";
-    }
-    if(conf.count("version") != 0 && conf["version"].get_type() != IniType::String) {
-        return "\"version\" must be a string!";
-    }
+    if(conf.count("name") == 0) return "\"name\" is required!";
+    if(conf.count("files") == 0) return "\"files\" is required!";
+    if(conf["name"].get_type() != IniType::String) return "\"name\" must be a string!";
+    if(conf["files"].get_type() != IniType::List) return "\"files\" must be a list!";
+
+    if(conf.count("dependencies") != 0 && conf["dependencies"].get_type() != IniType::List) return "\"dependencies\" must be a list!";
+    if(conf.count("version") != 0 && conf["version"].get_type() != IniType::String) return "\"version\" must be a string!";
+    if(conf.count("scripts") != 0 && conf["scripts"].get_type() != IniType::List) return "\"scripts\" must be a list!";
+    if(conf.count("description") != 0 && conf["description"].get_type() != IniType::String) return "\"description\" must be a string!";
+    if(conf.count("tags") != 0 && conf["tags"].get_type() != IniType::List) return "\"tags\" must be a list!";
+    if(conf.count("authors") != 0 && conf["authors"].get_type() != IniType::String) return "\"authors\" must be a string!";
+    if(conf.count("license") != 0 && conf["license"].get_type() != IniType::String) return "\"license\" must be a string!";
+    if(conf.count("documentation") != 0 && conf["documentation"].get_type() != IniType::String) return "\"documentation\" must be a string!";
+    
     return "";
 }
 
@@ -159,107 +193,89 @@ void make_register() {
     if(!std::filesystem::exists(CATCARE_ROOT + CATCARE_DIRSLASH CATCARE_REGISTERNAME)) {
         std::ofstream os;
         os.open(CATCARE_ROOT + CATCARE_DIRSLASH CATCARE_REGISTERNAME,std::ios::app);
-        os << "installed=[]\n";
+        os << "installed = []\n";
         os.close();
     }
 }
 
-IniList get_register() {
+IniDictionary get_register() {
     make_register();
     IniFile reg = IniFile::from_file(CATCARE_ROOT + CATCARE_DIRSLASH CATCARE_REGISTERNAME);
-    return reg.get("installed").to_list();
+    return reg.get("installed").to_dictionary();
 }
 
 bool installed(std::string name) {
-    IniList lst = get_register();
-    name = app_username(name);
+    IniDictionary lst = get_register();
     for(auto i : lst) {
-        if(i.get_type() == IniType::String && name == (std::string)i) {
-            return true;
-        }
+        if((std::string)i.first == name || (std::string)i.second == name) return true;
     }
     return false;
 }
 
-void add_to_register(std::string name) {
-    if(installed(name)) { return; }
+void add_to_register(std::string url, std::string name) {
+    if(installed(url)) { return; }
+    name = to_lowercase(name);
     IniFile reg = IniFile::from_file(CATCARE_ROOT + CATCARE_DIRSLASH CATCARE_REGISTERNAME);
-    IniList l = reg.get("installed").to_list();
-    l.push_back("\"" + name + "\"");
+    IniDictionary l = reg.get("installed").to_dictionary();
+    l[name] = url;
     reg.set("installed",l);
     reg.to_file(CATCARE_ROOT + CATCARE_DIRSLASH CATCARE_REGISTERNAME);
 }
 
 void remove_from_register(std::string name) {
-    auto [usr,rname] = get_username(name);
-    if(rname != "") {
-
-    }
+    name = to_lowercase(name);
     if(!installed(name)) { return; }
+
     IniFile reg = IniFile::from_file(CATCARE_ROOT + CATCARE_DIRSLASH CATCARE_REGISTERNAME);
-    IniList l = reg.get("installed").to_list();
-    for(size_t i = 0; i < l.size(); ++i) {
-        if(l[i].get_type() == IniType::String && (std::string)l[i] == name) {
-            l.erase(l.begin()+i);
-            break;
-        }
-    }
-    reg.set("installed",l);
+    IniDictionary d = reg.get("installed").to_dictionary();
+    d.erase(name);
+    reg.set("installed",d);
     reg.to_file(CATCARE_ROOT + CATCARE_DIRSLASH CATCARE_REGISTERNAME);
 }
 
-bool is_dependency(std::string name) {
+bool is_dependency(std::string url) {
+    if(arg_settings::global) return false;
     IniList lst = get_dependencylist();
     for(auto i : lst) {
-        if(i.get_type() == IniType::String && name == (std::string)i) {
+        if(i.get_type() == IniType::String && url == (std::string)i) {
             return true;
         }
     }
     return false;
 }
 
-void add_to_dependencylist(std::string name, bool local) {
+void add_to_dependencylist(std::string url) {
+    if(arg_settings::global) return;
+    if(is_dependency(url)) return;
     IniFile reg = IniFile::from_file(CATCARE_CHECKLISTNAME);
-    IniList l = reg.get("dependencies","Download").to_list();
-    for(size_t i = 0; i < l.size(); ++i) {
-        if(l[i].get_type() == IniType::String && (std::string)l[i] == name) {
-            return;
-        }
-    }
-    IniElement elm;
-    if(local)
-        elm = "." CATCARE_DIRSLASH + name;
-    else
-        elm = name;
+    IniList l = reg.get("dependencies","Download");
+    IniElement elm = url;
     l.push_back(elm);
     reg.set("dependencies",l,"Download");
     reg.to_file(CATCARE_CHECKLISTNAME);
 }
 
-void remove_from_dependencylist(std::string name) {
+void remove_from_dependencylist(std::string url) {
+    if(arg_settings::global) return;
     IniFile reg = IniFile::from_file(CATCARE_CHECKLISTNAME);
     IniList l = reg.get("dependencies","Download").to_list();
-    if(!is_dependency(name)) {
-        name = "." CATCARE_DIRSLASH + name;
-        for(size_t i = 0; i < l.size(); ++i) {
-            if(l[i].get_type() == IniType::String && (std::string)l[i] == name) {
-                l.erase(l.begin()+i);
-                break;
-            }
-        }
-        reg.set("dependencies",l,"Download");
-        reg.to_file(CATCARE_CHECKLISTNAME);
-        return;    
-    }
-    
+
     for(size_t i = 0; i < l.size(); ++i) {
-        if(l[i].get_type() == IniType::String && (std::string)l[i] == name) {
+        if(l[i].get_type() == IniType::String && (std::string)l[i] == url) {
             l.erase(l.begin()+i);
             break;
         }
     }
     reg.set("dependencies",l,"Download");
     reg.to_file(CATCARE_CHECKLISTNAME);
+}
+
+std::string url2name(std::string url) {
+    IniDictionary regist = get_register();
+    for(auto i : regist) {
+        if((std::string)i.second == url) return i.first;
+    }
+    return "";
 }
 
 IniList get_dependencylist() {
@@ -269,7 +285,21 @@ IniList get_dependencylist() {
 
 void make_checklist() {
     if(!std::filesystem::exists(CATCARE_CHECKLISTNAME)) {
-        make_file(CATCARE_CHECKLISTNAME,"[Info]\nname=\"\"\n\n[Download]\ndependencies=[]\nfiles=[]\n");
+        make_file(CATCARE_CHECKLISTNAME,R"(
+[Info]
+name = "project-name"
+version = "version-here" # optional
+
+[Download]
+files = [] # append files manually or use `catcare add <file>`
+# optional
+dependencies = [] # append manually and sync or use `catcare get <user>/<project>`
+scripts = [] 
+tags = []
+authors = []
+license = ""
+documentation = "" # put the link here
+)");
     }
 }
 
@@ -288,11 +318,11 @@ void set_filelist(IniList list) {
     }
 }
 
-bool blacklisted(std::string repo) {
-    IniFile file = IniFile::from_file(CATCARE_CONFIGFILE);
+bool blacklisted(std::string url) {
+    IniFile file = IniFile::from_file(CATCARE_CONFIG_FILE);
     IniList l = file.get("blacklist");
     for(auto i : l) {
-        if(i.get_type() == IniType::String && (std::string)i == repo) return true;
+        if(i.get_type() == IniType::String && (std::string)i == url) return true;
     }
     return false;
 }

@@ -6,6 +6,6 @@ version = "1.3.1"
 
 [Download]
 dependencies = []
-files = ["$src","$inc","$mods","$mods/ArgParser","inc/configs.hpp","inc/network.hpp","inc/options.hpp","src/configs.cpp","src/network.cpp","src/options.cpp","mods/ArgParser/ArgParser.h","mods/ArgParser/ArgParser.cpp","mods/inipp.hpp","mods/kittenlexer.hpp","$carescript","carescript/carescript.cpp","carescript/carescript.hpp"]
+files = ["$src","$inc","$mods","$mods/ArgParser","inc/configs.hpp","inc/network.hpp","inc/options.hpp","src/configs.cpp","src/network.cpp","src/options.cpp","mods/ArgParser/ArgParser.h","mods/ArgParser/ArgParser.cpp","mods/inipp.hpp","mods/kittenlexer.hpp","$carescript","inc/catcaretaker-ccs-extension.hpp","carescript/carescript-api.hpp","carescript/carescript-defaults.hpp","carescript/carescript-defs.hpp","carescript/carescript-macromagic.hpp","carescript/carescript-parsing.hpp","carescript/carescript-types.hpp","inc/pagelist.hpp","src/pagelist.cpp"]
 scripts = ["script.ccs"]
 

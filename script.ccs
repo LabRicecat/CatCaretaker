@@ -1,1 +1,2 @@
-echo("this is a template")
+@main[]
+    echoln("this is a template")

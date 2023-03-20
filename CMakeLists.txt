@@ -6,17 +6,16 @@ project(catcare
     DESCRIPTION "A tool to easily reuse projects"
 )
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(BINARY catcare)
 set(SOURCE 
     src/main.cpp 
     src/configs.cpp 
     src/network.cpp 
     src/options.cpp 
+    src/pagelist.cpp 
 
     mods/ArgParser/ArgParser.cpp 
-
-    carescript/carescript.cpp 
     )
 
 add_executable(${BINARY} ${SOURCE})

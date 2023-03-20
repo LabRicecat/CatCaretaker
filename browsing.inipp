@@ -1,34 +1,11 @@
 [Main]
-browsing={
-    CatTypes: {
-        description: "Simple adjustable token analyzing tool",
-        language: "C++",
-        author:"CatCaretaker",
-    },
-    KittenLexer: {
-        description: "A minimalistic kitten themed lexer",
-        language: "C++",
-        author:"CatCaretaker",
-    },
-    KittenTerminal: {
-        description: "A simple cat themed command line parser tool",
-        language: "C++",
-        author:"CatCaretaker",
-    },
-    FelineLogger: {
-        description: "A simple logger that also allows to read logs",
-        language: "C++",
-        author:"CatCaretaker",
-    },
-    
-    InIpp: {
-        description: "InI++ (Or InIpp) is normal InI, but with changes and additions",
-        language: "C++",
-        author:"LabRicecat",
-    },
-    ArgParser: {
-        description: "A simple argument parser",
-        language: "C++",
-        author:"LabRicecat",
-    },
-}
+browsing = [
+    "https://raw.githubusercontent.com/catcaretaker/felinelogger/main/",
+    "https://raw.githubusercontent.com/catcaretaker/carescript-api/main/",
+    "https://raw.githubusercontent.com/catcaretaker/kittenlexer/main/",
+    "https://raw.githubusercontent.com/catcaretaker/kittenterminal/main/",
+    "https://raw.githubusercontent.com/catcaretaker/cattypes/main/",
+    "https://raw.githubusercontent.com/labricecat/inipp/main/",
+    "https://raw.githubusercontent.com/labricecat/argparser/main/",
+    "https://raw.githubusercontent.com/labricecat/catcaretaker/main/"
+]

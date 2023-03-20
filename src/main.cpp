@@ -1,7 +1,8 @@
 #include "../inc/configs.hpp"
 #include "../inc/options.hpp"
 #include "../mods/ArgParser/ArgParser.h"
-#include "../carescript/carescript.hpp"
+#include "../carescript/carescript-api.hpp"
+#include "../inc/catcaretaker-ccs-extension.hpp"
 
 #include <time.h>
 
@@ -10,62 +11,164 @@ void print_help() {
             << "A configurable helper to reuse already made work fast and efficient from github.\n\n"
             << " catcare <option> [arguments] [flags]\n\n"
             << "option :=\n"
-            << "   download|get <repository>    :  downloads and sets up the project.\n"
-            << "   local <path/redirect>        :  copies an already existing project by path or redirect.\n"
+            << "   download|get <code>          :  downloads and sets up the project.\n"
             << "   erase|remove [.all|<proj>]   :  removes an installed project.\n"
             << "   add <path>                   :  add a file to the downloadlist\n"
             << "   cleanup                      :  removes all installed projects.\n"
             << "   info <install>               :  shows infos about the selected project.\n"
+            << "   this                         :  shwos infos about the current project.\n"
             << "   option <option> to <value>   :  sets OPTION to VALUE in the config file\n"
-            << "   redirect <option> to <value> :  sets OPTION as local redirect to VALUE in the config file.\n"
             << "   config [explain|reset|show]  :  manages the config file.\n"
             << "   check [.all|<project>]       :  checks if for PROJECT is a new version available.\n"
-            << "   browse [official|<repo>]     :  view a browsing file showing of different projects.\n"
+            << "   browse [official|<code>]     :  view a browsing file showing of different projects.\n"
             << "   whatsnew <project>           :  read the latest patch notes of a project.\n"
             << "   guide                        :  cli walkthrough tutorial for the CatCaretaker.\n"
             << "   setup <name>                 :  sets up a checklist for a project.\n"
             << "   release                      :  set up a release note easily.\n"
             << "   template [list]              :  create a template file.\n"       
             << "   blacklist [append|pop|show]  :  blacklsit certain projects.\n"  
-            << "   macro <macro> <args...>      :  runs a macro file.\n"
+            << "   macro <macro> <args...>      :  runs a macro file. (.help|.list for help)\n"
             << "   sync                         :  reinstalls all the dependencies of the current project.\n\n"
             << "flags := \n"
             << "   --help|-h                  :  prints this and exits.\n"
+            << "   --global|-g                :  installs into the global installation directory.\n"
+            << "   --no-config                :  don't create a config directory.\n"
             << "   --silent|-s                :  prevents info and error messages.\n\n"
             << "By LabRiceCat (c) 2023\n"
             << "Repository: https://github.com/LabRiceCat/catcaretaker\n";
     std::exit(0);
 }
 
+void print_config(IniDictionary config) {
+    std::cout << "Name: " << (std::string)config["name"] << "\n";
+    if(config.count("version") != 0) std::cout << "Version: " << (std::string)config["version"] << "\n";
+    if(config.count("license") != 0) std::cout << "License: " << (std::string)config["license"] << "\n";
+    if(config.count("documentation") != 0) std::cout << "Documentation: " << (std::string)config["documentation"] << "\n";
+    if(config.count("tags") != 0 && config["authors"].to_list().size() != 0) {
+        std::cout << "Authors: \n";
+        for(auto i : config["authors"].to_list()) {
+            std::cout << " - " << (std::string)i << "\n";
+        }
+    }
+    if(config.count("authors") != 0 && config["authors"].to_list().size() != 0) {
+        std::cout << "Authors: \n";
+        IniList list = config["authors"].to_list();
+        for(size_t i = 0; i < list.size(); ++i) {
+            if(i != 0) std::cout << ", ";
+            std::cout << (std::string)list[i];
+        }
+        std::cout << "\n";
+    }
+    if(config.count("tags") != 0 && config["tags"].to_list().size() != 0) {
+       std::cout << "Tags: \n";
+        IniList list = config["tags"].to_list();
+        for(size_t i = 0; i < list.size(); ++i) {
+            if(i != 0) std::cout << ", ";
+            std::cout << (std::string)list[i];
+        }
+        std::cout << "\n";
+    }
+    if(config.count("scripts") != 0 && config["scripts"].to_list().size() != 0) {
+       std::cout << "Scripts: \n";
+        IniList list = config["scripts"].to_list();
+        for(size_t i = 0; i < list.size(); ++i) {
+            if(i != 0) std::cout << ", ";
+            std::cout << (std::string)list[i];
+        }
+        std::cout << "\n";
+    }
+    if(config.count("dependencies") != 0 && config["dependencies"].to_list().size() != 0) {
+        std::cout << "Dependencies: \n";
+        for(auto i : config["dependencies"].to_list()) {
+            std::cout << " - " << (std::string)i << "\n";
+        }
+    }
+    if(config["files"].to_list().size() != 0) {
+        bool drs = false;
+        std::cout << "Files: \n";
+        for(auto i : config["files"].to_list()) {
+            std::string f = (std::string)i;
+            if(f[0] == '!')
+                f.erase(f.begin());
+            else if(f[0] == '$') { drs = true; continue; }
+            std::cout << " - " << f << "\n";
+        }
+        if(drs) {
+            std::cout << "Directories: \n";
+            for(auto i : config["files"].to_list()) {
+                std::string f = (std::string)i;
+                if(f[0] == '$')
+                    f.erase(f.begin());
+                else continue;
+                std::cout << " - " << f << "\n";
+            }
+        }
+    }
+}
+
 // #define DEBUG
 
+// only_installed = 0 -> only already installed projects
+// only_installed = 1 -> only not installed projects
+// only_installed = 2 -> all
+UrlPackage ask_to_resolve(std::string inp, int only_installed = 0) {
+    auto urls = get_download_url(to_lowercase(inp));
+    if(urls.size() > 1) {
+        for(size_t i = 0; i < urls.size(); ++i) {
+            if(only_installed != 2 && (only_installed == 0) == installed(urls[i].link)) {
+                urls.erase(urls.begin()+i);
+                --i;
+            }
+        }
+        if(urls.size() == 0) {
+            print_message("ERROR","No such project installed!");
+            return {};
+        }
+        else if(urls.size() > 1) {
+            std::cout << "More than one potential resolve, please select:\n";
+            for(size_t i = 0; i < urls.size(); ++i) {
+                std::cout << "[" << (i+1) << "] " << urls[i].rule.name << ": \t\t " << urls[i].link << "\n";
+            }
+            std::cout << "... or [e]xit\n=> ";
+            std::string inp;
+            std::getline(std::cin,inp);
+            if(inp == "e" || inp == "exit") return {};
+            try {
+                int select = std::stoi(inp);
+                if(select < 1 || select > urls.size()) { std::cout << "Invalid index!\n"; return {}; }
+                urls = {urls[select-1]};
+            }
+            catch(...) {
+                std::cout << "Invalid index!\n"; 
+                return {};
+            }
+        }
+    }
+    if(urls.size() != 1) {
+        print_message("ERROR","Can't resolve this to any rules!");
+        return {};
+    }
+    return urls[0];
+}
+
 int main(int argc,char** argv) {
-    if(!std::filesystem::exists(CATCARE_HOME)) {
-        reset_localconf();
-    }
-    if(!std::filesystem::exists(CATCARE_CONFIGFILE)) {
-        std::ofstream of;
-        make_file(CATCARE_CONFIGFILE);
-        of.open(CATCARE_CONFIGFILE,std::ios::app);
-        of << "options={}\nredirects={}\n";
-        of.close();
-    }
-    load_localconf();
+    using namespace carescript;
+    Interpreter interpreter;
+    bake_extension(get_extension(),interpreter.settings);
 
     if(options.count("default_silent") > 0 && (options["default_silent"] == "1" || options["default_silent"] == "true")) {
-        opt_silence = true;
+        arg_settings::opt_silence = true;
     }
 
     ArgParser parser = ArgParser()
         .addArg("--help",ARG_TAG,{"-h"},0)
         .addArg("download",ARG_SET,{"get"},0)
-        .addArg("local",ARG_SET,{},0)
         .addArg("erase",ARG_SET,{"remove"},0)
         .addArg("cleanup",ARG_TAG,{},0)
         .addArg("info",ARG_SET,{},0)
         .addArg("list",ARG_TAG,{},0)
+        .addArg("this",ARG_TAG,{},0)
         .addArg("option",ARG_SET,{},0)
-        .addArg("redirect",ARG_SET,{},0)
         .addArg("to",ARG_SET,{"is"},2)
         .addArg("config",ARG_SET,{},0)
         .addArg("setup",ARG_SET,{},0)
@@ -77,18 +180,17 @@ int main(int argc,char** argv) {
         .addArg("add",ARG_SET,{},0)
         .addArg("whatsnew",ARG_SET,{},0)
         .addArg("macro",ARG_SET,{},0)
-        .setbin()
-#ifdef DEBUG
-        .addArg("run",ARG_SET,{},0)
-#endif
         .addArg("template",ARG_SET,{},0)
-
         .addArg("blacklist",ARG_TAG,{},0)
         .addArg("append",ARG_SET,{},1)
         .addArg("pop",ARG_SET,{},1)
         .addArg("show",ARG_TAG,{},1)
 
+        .setbin()
+
         .addArg("--silent",ARG_TAG,{"-s"})
+        .addArg("--global",ARG_TAG,{"-g"})
+        .addArg("--no-config",ARG_TAG,{})
 #ifdef DEBUG
         .addArg("--debug",ARG_TAG,{"-d"})
 #endif
@@ -96,8 +198,8 @@ int main(int argc,char** argv) {
 
     std::atexit([](){
         if(option_or("clear_on_error","true") == "true") {
-            if(std::filesystem::exists(CATCARE_TMPDIR)) {
-                std::filesystem::remove_all(CATCARE_TMPDIR);
+            if(std::filesystem::exists(CATCARE_TMP_PATH)) {
+                std::filesystem::remove_all(CATCARE_TMP_PATH);
             }
         }
     });
@@ -107,8 +209,27 @@ int main(int argc,char** argv) {
     if(!pargs || pargs["--help"]) {
         print_help();
     }
-    if(pargs["--silent"]) {
-        opt_silence = true;
+    arg_settings::opt_silence = pargs["--silent"];
+    arg_settings::no_config = pargs["--no-config"];
+    arg_settings::global = pargs["--global"];
+
+    if(!arg_settings::no_config) {
+        std::string hcheck = healthcheck_localconf();
+        if(hcheck != "") {
+            std::cout << hcheck << "\nReset it? [y/N]: ";
+            std::string inp;
+            std::getline(std::cin,inp);
+            if(inp == "y" || inp == "Y") {
+                std::ofstream of;
+                make_file(CATCARE_CONFIG_FILE);
+                of.open(CATCARE_CONFIG_FILE,std::ios::app);
+                of << "options = {}\nblacklist = []\n";
+                of.close();
+            }
+            return 1;
+        }
+        load_localconf();
+        load_extensions(interpreter);
     }
 
     if((pargs("append") != "" || pargs("pop") != "" || pargs["show"]) && !pargs["blacklist"] || (pargs.has_bin() && pargs("macro") == "")) {
@@ -116,35 +237,42 @@ int main(int argc,char** argv) {
     }
     else if(pargs("download") != "") {
         std::string error;
-        std::string repo = pargs("download");
-        repo = to_lowercase(repo);
-        error = download_repo(repo);
+        std::string project = pargs("download");
+        auto url = ask_to_resolve(project,2);
+        if(url.link == "") return 1;
+
+        if(url.rule.script_handle == 1)
+            error = download_project(url.link);
 
         if(error != "")
-            print_message("ERROR","Error downloading repo: \"" + repo + "\"\n-> " + error);
+            print_message("ERROR","Error while downloading project!\n-> " + error);
         else {
-            print_message("RESULT","Successfully installed!");
-            if(!is_dependency(repo)) {
-                add_to_dependencylist(repo);
+            if(!url.rule.scripts.empty()) {
+                print_message("INFO","Running attachments...");
+                for(auto i : url.rule.scripts) {
+                    Interpreter interp;
+                    bake_extension(get_extension(),interp.settings);
+                    load_extensions(interp);
+                    std::ifstream f(CATCARE_ATTACHMENT_PATH CATCARE_DIRSLASH + i);
+                    std::string src;
+                    while(f.good()) src += f.get();
+                    if(!src.empty()) src.pop_back();
+                    interp.pre_process(src);
+                    if(!interp) {
+                        print_message("ERROR","Attachment " + i + " by rule " + url.rule.name + ": \n  " + interp.error());
+                    }
+                    interp.run("attachment",url.link);
+                    if(!interp) {
+                        print_message("ERROR","Attachment " + i + " by rule " + url.rule.name + ": \n  " + interp.error());
+                    }
+                }
             }
-        }
-    }
-    else if(pargs("local") != "") {
-        std::string repo = pargs("local");
-        std::string error = "";
-        if(is_redirected(repo)) {
-            error = get_local(repo,local_redirect[repo]);
-        }
-        else {
-            error = get_local(last_name(repo),std::filesystem::path(repo).parent_path().string());
-        }
+            if(url.rule.script_handle == 0)
+                error = download_project(url.link);
 
-        if(error != "")
-            print_message("ERROR","Error copying local repo: \"" + repo + "\"\n-> " + error);
-        else {
-            print_message("RESULT","Successfully copied!");
-            if(!is_dependency(repo)) {
-                add_to_dependencylist(repo,true);
+            print_message("RESULT","Successfully installed!");
+            if(!is_dependency(url.link)) {
+                add_to_dependencylist(url.link);
             }
         }
     }
@@ -158,19 +286,19 @@ int main(int argc,char** argv) {
             make_register();
         }
         else {
-            std::string name = to_lowercase(pargs("erase"));
-            name = app_username(name);
-            auto [usr,proj] = get_username(name);
+            auto url = ask_to_resolve(pargs("erase"),0);
+            if(url.link == "") return 1;
+            std::string name = url2name(url.link);
             if(!std::filesystem::exists(CATCARE_ROOT + CATCARE_DIRSLASH + name)) {
-                print_message("ERROR","No such repo installed: \"" + name + "\"");
-                return 0;
+                print_message("ERROR","No such project installed!");
+                return 1;
             }
             
-            std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + proj);
+            std::filesystem::remove_all(CATCARE_ROOT + CATCARE_DIRSLASH + name);
             
-            print_message("DELETE","Removed repo: \"" + name + "\"");
-            remove_from_register(name);
-            remove_from_dependencylist(name);
+            print_message("DELETE","Removed project: \"" + name + "\"");
+            remove_from_register(url.link);
+            remove_from_dependencylist(url.link);
         }
     }
     else if(pargs["cleanup"]) {
@@ -181,35 +309,22 @@ int main(int argc,char** argv) {
         // make_register();
     }
     else if(pargs("info") != "") {
-        std::string repo = pargs("info");
-        repo = to_lowercase(repo);
-        repo = app_username(repo);
-        auto [usr, proj] = get_username(repo);
-        if(!installed(repo)) {
-            print_message("ERROR","No such repo installed: \"" + repo + "\"");
+        auto url = ask_to_resolve(pargs("info"),0);
+        if(url.link == "") return 1;
+        std::string name = url2name(url.link);
+        if(!installed(url.link)) {
+            print_message("ERROR","No such project installed!");
             return 0;
         }
-        IniDictionary d = extract_configs(proj);
-        std::cout << "Name: " << (std::string)d["name"] << "\n";
-        if(d.count("version") != 0) {
-            std::cout << "Version: " << (std::string)d["version"] << "\n";
-        }
-        if(d.count("dependencies") != 0 && d["dependencies"].to_list().size() != 0) {
-            std::cout << "Dependencies: \n";
-            for(auto i : d["dependencies"].to_list()) {
-                std::cout << " - " << (std::string)i << "\n";
-            }
-        }
-        std::cout << "Files: \n";
-        for(auto i : d["files"].to_list()) {
-            std::cout << " - " << (std::string)i << "\n";
-        }
+        
+        IniDictionary d = extract_configs(CATCARE_ROOT + CATCARE_DIRSLASH + name + CATCARE_DIRSLASH CATCARE_CHECKLISTNAME);
+        print_config(d);
     }
     else if(pargs["list"]) {
-        IniList l = get_register();
+        IniDictionary d = get_register();
         std::cout << "Installed projects:\n";
-        for(auto i : l) {
-            std::cout << " -> " << (std::string)i << "\n";
+        for(auto i : d) {
+            std::cout << " -> " << (std::string)i.first << " from " << (std::string)i.second <<"\n";
         }
     }
     else if(pargs("option") != "") {
@@ -219,18 +334,11 @@ int main(int argc,char** argv) {
         options[pargs("option")] = pargs("to");
         write_localconf();
     }
-    else if(pargs("redirect") != "") {
-        if(pargs("to") == "") {
-            print_message("ERROR","Invalid option syntax: redirect <name> to <path>");
-        }
-        local_redirect[pargs("redirect")] = std::filesystem::current_path().string() + CATCARE_DIRSLASH + pargs("to");
-        write_localconf();
-    }
     else if(pargs("config") != "") {
         std::string opt = pargs("config");
 
         if(opt == "show") {
-            IniFile file = IniFile::from_file(CATCARE_CONFIGFILE);
+            IniFile file = IniFile::from_file(CATCARE_CONFIG_FILE);
             IniDictionary d = file.get("options");
             std::cout << "Global options:\n";
             for(auto i : d) {
@@ -238,19 +346,14 @@ int main(int argc,char** argv) {
             }
         }
         else if(opt == "reset") {
-            if(confirmation("reset the config file?")) {
+            if(confirmation("reset the config directory?")) {
                 reset_localconf();
                 std::cout << "Done!\n";
             }
         }
         else if(opt == "explain") {
             std::cout << "Config options:\n"
-            << "username        :  The github username.\n"
-            << "default_branch  :  The default branch for the projects. (default: main)\n"
-            << "install_dir     :  The directory it installs the projects into. (default: catmods)\n"
-            << "install_url     :  The url we try to download from. (default: https://raw.githubusercontent.com/)\n"
             << "default_silent  :  If true -> `--silent` will be enabled by default. (default: false)\n"
-            << "local_over_url  :  If true -> local redirects get priorities when it comes to dependencies (default: false)\n"
             << "clear_on_error  :  If true -> clears the downloading project if an error occurs. (default: true)\n"
             << "show_script_src :  If true -> open a little lookup when a new script gets executed. (default: false)\n"
             << "no_scripts      :  If true -> stops all scripts from executing. (Warning: not recomended, default: false)\n";
@@ -272,36 +375,35 @@ int main(int argc,char** argv) {
         await_continue();
 
         CATGUIDE_HEADER();
-        std::cout << "First of all, what's your github username? (this will be set as default user)\n=> ";
-        std::string username = to_lowercase(ask_and_default("NOBODY"));
-        std::cout << "Hello " << username << "! Thanks for using the CatCaretaker!\n";
-        cat_sleep(2000);
-        cat_clsscreen();
-
-        CATGUIDE_HEADER();
-        std::cout << "The CatCaretaker is a tool to reuse already created projects to create new ones faster.\n"
+        std::cout 
+        << "The CatCaretaker is a tool to reuse already created projects to create new ones faster.\n"
         << "To download such a project from github:\n"
-        << " $ catcare download " << username << "/<project>\n"
-        << "This will download all files and create a `catmods/<project>` folder where all of them are stored.\n";
+        << " $ catcare download <user>/<project>@<branch>\n"
+        << "This will download all files and create a `" << CATCARE_ROOT << "/<project>` folder where all of them are stored.\n"
+        << "To download from a different website, or change the layout, see the " << CATCARE_URLRULES_FILENAME << "\n"
+        << "at " << CATCARE_URLRULES_FILE << "\n";
         await_continue();
 
         CATGUIDE_HEADER();
-        std::cout << "You can also remove a project easily by running:\n"
+        std::cout 
+        << "You can also remove a project easily by running:\n"
         << " $ catcare remove [.all|<project>]\n"
         << "By doing this, it will also be removed from the dependency-list.\n"
         << "If you want to cleanup all the dependency files without removing them as dependency, run:\n"
         << " $ catcare cleanup\n"
-        << "This can be useful if you want to minimize the storage usage\n";
+        << "This can be useful if you want to minimize the storage usage.\n";
         await_continue();
 
         CATGUIDE_HEADER();
-        std::cout << "To quickly setup your own project as a downloadable catcare-repository simply run:\n"
+        std::cout 
+        << "To quickly setup your own project as a downloadable catcare-project simply run:\n"
         << " $ catcare setup <project-name>\n"
         << "This creates a `cat_checklist.inipp` where all the data about the project are stores.\n";
         await_continue();
 
         CATGUIDE_HEADER();
-        std::cout << "Your `cat_checklist.inipp` contains an entry called `files`, \n"
+        std::cout 
+        << "Your `cat_checklist.inipp` contains an entry called `files`, \n"
         << "this is the list of files the CatCaretaker will download.\n"
         << "But instead of adding them manually, you can use this command:\n"
         << " $ catcare add <path>\n"
@@ -309,53 +411,67 @@ int main(int argc,char** argv) {
         await_continue();
 
         CATGUIDE_HEADER();
-        std::cout << "Not sure if any of your dependencies needs an update?\n"
+        std::cout 
+        << "Not sure if any of your dependencies needs an update?\n"
         << "try:\n"
         << " $ catcare check [.all|<project>]\n"
         << "If the main repository has a newer version available, it will tell you about it.\n";
         await_continue();
 
         CATGUIDE_HEADER();
-        std::cout << "To download the newest version of each dependency run:\n"
+        std::cout 
+        << "To download the newest version of each dependency run:\n"
         << " $ catcare sync\n"
         << "You can also read the latest patch notes of a project by doing:\n"
         << " $ catcare whatsnew <project>\n"
-        << "Note that this will only work if the target project contains a releases.inipp!\n";
+        << "Note that this will only work if the target project contains a `" << CATCARE_RELEASES_FILE << "` !\n";
         await_continue();
 
         CATGUIDE_HEADER();
-        std::cout << "Releases are a feature of the CatCaretaker as mentioned before,\n"
+        std::cout 
+        << "To quickly see what's the new release of an project, do:\n"
+        << " $ catcare whatsnew <project>\n"
+        << "This will give you the latest version and patchnotes! (If it contains a valid `" << CATCARE_RELEASES_FILE "`)\n";
+        await_continue();
+
+        CATGUIDE_HEADER();
+        std::cout 
+        << "Releases are a feature of the CatCaretaker as mentioned before,\n"
         << "to create your own, simply do:\n"
         << " $ catcare release\n"
-        << "This will ask you a few questions and generate a `releases.inipp` afterwards!\n";
+        << "This will ask you a few questions and generate a `" << CATCARE_RELEASES_FILE <<"` afterwards!\n";
         await_continue();
 
         CATGUIDE_HEADER();
-        std::cout << "Not sure what to download? There is always the option to browse through a project-list.\n"
+        std::cout 
+        << "Not sure what to download? There is always the option to browse through a project-list.\n"
         << "You can view such a list with:\n"
-        << " $ catcare browse [official|<repository>]\n"
-        << "`official` downloads the `browsing.inipp` directly from the CatCaretaker repository.\n";
+        << " $ catcare browse [official|<code>]\n" // TODO: add code example
+        << "`official` downloads the `" << CATCARE_BROWSING_FILE << "` directly from the CatCaretaker repository.\n"
+        << "To create your own `" << CATCARE_BROWSING_FILE << "` see the template with:\n"
+        << " $ catcare template browsing\n";
         await_continue();
 
         CATGUIDE_HEADER();
-        std::cout << "Customization is also possible, check out:\n"
+        std::cout 
+        << "Configuration is also possible, check out:\n"
         << " $ catcare config explain\n"
         << " $ catcare option <option> to <value>\n"
         << "...to view all available settings and set them globally.\n";
         await_continue();
 
         CATGUIDE_HEADER();
-        std::cout << "This is the end of the guide, if you have any more questions,\n"
+        std::cout 
+        << "This is the end of the guide, if you have any more questions,\n"
         << "have a look at the github repository: https://github.com/LabRicecat/CatCaretaker\n"
         << "or run `$ catcare --help`.\n\n"
         << "Thanks for using the CatCaretaker!\n";
         await_continue();
-
-        options["username"] = username;
-        write_localconf();
     }
     else if(pargs("setup") != "") {
         std::string name = pargs("setup");
+        if(std::filesystem::exists(CATCARE_CHECKLISTNAME))
+            std::filesystem::remove_all(CATCARE_CHECKLISTNAME);
         make_register();
         make_checklist();
         IniFile f = IniFile::from_file(CATCARE_CHECKLISTNAME);
@@ -380,19 +496,18 @@ int main(int argc,char** argv) {
         proj = to_lowercase(proj);
         if(proj == ".all") {
             int found = 0;
-            IniList reg = get_register();
+            IniDictionary reg = get_register();
             for(auto i : reg) {
-                if(i.get_type() == IniType::String) {
-                    std::string p = app_username((std::string)i);
-                    auto [newv,oldv] = needs_update(p);
+                if(i.second.get_type() == IniType::String) {
+                    auto [newv,oldv] = needs_update((std::string)i.second);
                     if(newv != "") {
-                        std::cout << "Project \"" << p << "\" can be updated: " << oldv << " -> " << newv << "\n";
+                        std::cout << "Project \"" << i.first << "\" can be updated: " << oldv << " -> " << newv << "\n";
                         ++found;
                     }
                 }
             }
             if(found == 0) {
-                std::cout << "All dependencies up to date!\n";
+                std::cout << "All dependencies are up to date!\n";
             }
             else {
                 std::cout << "Found " << found << " available updates!\nRun `catcare sync` to update them all.\n";
@@ -400,52 +515,55 @@ int main(int argc,char** argv) {
             return 0;
         }
 
-        app_username(proj);
-        if(!installed(proj)) {
-            std::cout << "Project: \"" << proj << "\" is not installed!\nDo you want to install it? [y/N]:";
+        auto url = ask_to_resolve(proj,0);
+        if(url.link == "") return 1;
+
+        if(!installed(url.link)) {
+            std::cout << "This project is not installed!\nDo you want to install it? [y/N]:";
             std::string inp;
             std::getline(std::cin,inp);
             if(inp == "Yes" || inp == "y" || inp == "Y" || inp == "yes") {
-                std::string error = download_repo(proj);
+                std::string error = download_project(url.link);
                 if(error != "")
-                    print_message("ERROR","Error downloading repo: \"" + proj + "\"\n-> " + error);
+                    print_message("ERROR","Error downloading project!\n-> " + error);
                 else {
                     print_message("RESULT","Successfully installed!");
-                    if(!is_dependency(proj)) {
-                        add_to_dependencylist(proj);
+                    if(!is_dependency(url.link)) {
+                        add_to_dependencylist(url.link);
                     }
                 }
             }
         }
         else {
-            auto [newv,oldv] = needs_update(proj);
+            auto [newv,oldv] = needs_update(url.link);
             if(newv != "") {
-                std::cout << "Project \"" << proj << "\" can be updated: " << oldv << " -> " << newv << "\n";
+                std::cout << "This project can be updated: " << oldv << " -> " << newv << "\n";
             }
             else {
-                std::cout << "Project \"" << proj << "\" is up to date!\n";
+                std::cout << "This project is up to date!\n";
             }
         }
     }
     else if(pargs("browse") != "") {
         std::string brow = pargs("browse");
-        std::string to_download = CATCARE_REPOFILE(brow,CATCARE_BROWSING_FILE);
+        UrlPackage url;
         if(brow == "official") {
-            to_download = CATCARE_BROWSE_OFFICIAL;
+            url.link = CATCARE_BROWSE_OFFICIAL;
         }
+        else url = ask_to_resolve(brow,2);
         
-        std::filesystem::create_directory(CATCARE_TMPDIR);
-        if(!download_page(to_download,CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_BROWSING_FILE)) {
-            print_message("ERROR","An error occured while downloading the browsing file");
+        std::filesystem::create_directory(CATCARE_TMP_PATH);
+        if(!download_page(url.link,CATCARE_TMP_PATH CATCARE_DIRSLASH CATCARE_BROWSING_FILE)) {
+            print_message("ERROR","An error occured while downloading the browsing file!");
             return 1;
         }
 
-        if(!browse(CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_BROWSING_FILE)) {
+        if(!browse(CATCARE_TMP_PATH CATCARE_DIRSLASH CATCARE_BROWSING_FILE, url.link)) {
             print_message("ERROR","The browsing file seems to be corrupted! Sorry.");
             return 1;
         }
 
-        std::filesystem::remove_all(CATCARE_TMPDIR);
+        std::filesystem::remove_all(CATCARE_TMP_PATH);
     }
     else if(pargs["release"]) {
         std::cout << "Release version (common format: MAJOR.MINOR.PATCH)\n=> ";
@@ -474,11 +592,7 @@ int main(int argc,char** argv) {
         tm* ctm = localtime(&t);
         release["date"] = 
             std::to_string(ctm->tm_year + 1900) + "/" +
-            std::to_string(ctm->tm_mon + 1) + "/" + 
-            std::to_string(ctm->tm_mday) + " " +
-            std::to_string(ctm->tm_hour) + ":" +
-            std::to_string(ctm->tm_min) + ":" +
-            std::to_string(ctm->tm_sec);
+            std::to_string(ctm->tm_mon + 1);
         
         file.sections.push_back(release);
         file.to_file(CATCARE_RELEASES_FILE);
@@ -531,18 +645,19 @@ int main(int argc,char** argv) {
     }
     else if(pargs("whatsnew") != "") {
         std::string proj = pargs("whatsnew");
-        proj = to_lowercase(app_username(proj));
+        auto url = ask_to_resolve(proj,2);
+        if(url.link == "") return 1;
 
-        std::filesystem::create_directory(CATCARE_TMPDIR);
-        if(!download_page(CATCARE_REPOFILE(proj,CATCARE_RELEASES_FILE),CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_RELEASES_FILE)) {
+        std::filesystem::create_directory(CATCARE_TMP_PATH);
+        if(!download_page(url.link + CATCARE_RELEASES_FILE,CATCARE_TMP_PATH CATCARE_DIRSLASH CATCARE_RELEASES_FILE)) {
             print_message("ERROR","Unable to download releases info!");
             return 1;
         }
-        if(!download_page(CATCARE_REPOFILE(proj,CATCARE_CHECKLISTNAME),CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_CHECKLISTNAME)) {
+        if(!download_page(url.link + CATCARE_CHECKLISTNAME,CATCARE_TMP_PATH CATCARE_DIRSLASH CATCARE_CHECKLISTNAME)) {
             print_message("ERROR","Unable to download checklist info!");
             return 1;
         }
-        IniFile file = IniFile::from_file(CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_CHECKLISTNAME);
+        IniFile file = IniFile::from_file(CATCARE_TMP_PATH CATCARE_DIRSLASH CATCARE_CHECKLISTNAME);
         if(!file || !file.has("version","Info") || file.get("version","Info").get_type() != IniType::String
                  || !file.has("name","Info") || file.get("name","Info").get_type() != IniType::String) {
             print_message("ERROR","The main cat_checklist.inipp seems to be corrupted! Contact the maintainer if possible, or check your internet connection!");
@@ -551,7 +666,7 @@ int main(int argc,char** argv) {
 
         std::string version = (std::string)file.get("version","Info");
         std::string name = (std::string)file.get("name","Info");
-        IniFile release_file = IniFile::from_file(CATCARE_TMPDIR CATCARE_DIRSLASH CATCARE_RELEASES_FILE);
+        IniFile release_file = IniFile::from_file(CATCARE_TMP_PATH CATCARE_DIRSLASH CATCARE_RELEASES_FILE);
         
         if(!release_file.has_section(version)) {
             print_message("ERROR","The releases.inipp from this project does not contain any data for the current most recent version! Oh no!");
@@ -574,68 +689,79 @@ int main(int argc,char** argv) {
         std::cout << "Version: " << version << "\n";
         std::cout << "Release from date: " << (std::string)date << "\n";
         std::cout << "Notes:\n" << (std::string)path_notes << "\n";
-        std::filesystem::remove_all(CATCARE_TMPDIR);
+        std::filesystem::remove_all(CATCARE_TMP_PATH);
     }
-#ifdef DEBUG    
-    else if(pargs("run") != "") {
-        std::string r;
-        std::ifstream f(pargs("run"));
-        while(f.good()) r += f.get();
-        if(!r.empty()) r.pop_back();
-
-        std::string err = run_script(r);
-        if(err != "") {
-            print_message("ERROR",err);
-            return 1;
-        }
-    }
-#endif
     else if(pargs("template") != "") {
         std::string templ = pargs("template");
         if(templ == "checklist") {
-            make_file("cat_checklist.inipp",
-            "[Info]\n"
-            "name = \"project-name\"\n"
-            "version = \"version-here\" # optional \n\n"
-            "[Download]\n"
-            "files = [] # append files manually or use `catcare add <file>`\n"
-            "dependencies = [] # append manually and sync or use `catcare get <user>/<project>`\n"
-            "scripts = [] # optional\n");
-            print_message("INFO","Template successfully created as cat_checklist.inipp");
+            make_file(CATCARE_CHECKLISTNAME,R"(
+[Info]
+name = "project-name"
+version = "version-here" # optional
+
+[Download]
+files = [] # append files manually or use `catcare add <file>`
+# optional
+dependencies = [] # append manually and sync or use `catcare get <user>/<project>`
+scripts = [] 
+tags = []
+authors = []
+license = ""
+documentation = "" # put the link here
+)");
+            print_message("INFO","Template successfully created as " CATCARE_CHECKLISTNAME);
         }
         else if(templ == "script") {
-            make_file("script.ccs",
-            "echo(\"Hello Script\") # print text\n"
-            "add(FILE,\"name\") # create a file\n\n"
-            "if(WINDOWS) # check for a specific OS\n"
-            "add(DEPENDENCY,\"name\") # download a dependency\n"
-            "endif() # end of the if from above\n\n"
-            "project_info(NAME,name)\n"
-            "project_info(VERSION,version)\n"
-            "echo(\"project: \" + $name + \" version: \" + $version)\n\n"
-            "# look at the wiki for more information about carescript\n");
+            make_file("script.ccs",R"(
+@main[]
+    echoln("Hello, Script!")
+    if(WINDOWS)
+        if(not installed("dependency"))
+            add_project("dependency")
+        endif()
+    else()
+        add_file("file.txt","File Content")
+    endif()
+)");
             print_message("INFO","Template successfully created as script.css");
         }
         else if(templ == "browsing") {
-            make_file("browsing.inipp",
-            "[Main]\n"
-            "browsing = {\n"
-                "\tPROJECT_NAME: {\n"
-                    "\t\tdescription: \"short description of the project.\",\n"
-                    "\t\tlanguage: \"python/C/...\",\n"
-                    "\t\tauthor: \"username of the author\",\n"
-                "\t},\n"
-            "}\n\n"
-            "# keep PROJECT_NAME and \"author\" the same as the github user and project\n"
-            "# so it can be directly downloaded\n"
-            );
-            print_message("INFO","Template successfully created as browsing.inipp");
+            make_file(CATCARE_BROWSING_FILE,R"(
+[Main]
+browsing = [
+    "https://...", # individual projects
+    "https://..."
+]
+
+include = [] # add other "browsing.inipp" files from different sources via URL here
+)");
+            print_message("INFO","Template successfully created as " CATCARE_BROWSING_FILE);
+        }
+        else if(templ == "urlrules") {
+            make_file(CATCARE_URLRULES_FILENAME,R"(
+"--- urlrules.ccr ---"
+
+" name here your rule to resolve a input"
+RULE github;
+    "the link with {} for placeholders"
+    LINK "https://raw.githubusercontent.com/{user}/{project}/{branch}/";
+    "define the order in which the user enters the placeholders"
+    WITH user 1
+         project 2
+         branch 3;
+    "define the splitting symbols for the input"
+    SIGNS / @;
+    "after a resolved download by this rule, execute this file from )" CATCARE_ATTACHMENT_PATH R"(
+    ATTACH "some-script"; 
+)");
+            print_message("INFO","Template successfully created as " CATCARE_URLRULES_FILENAME);
         }
         else if(templ == "list") {
             std::cout << "Available templates:\n"
-                << "  checklist -> creates a template cat_checklist.inipp\n"
-                << "  script -> creates a template script.ccs\n"
-                << "  browsing -> creates a template browsing.inipp\n";
+                << "  checklist -> creates a template " CATCARE_CHECKLISTNAME "\n"
+                << "  script    -> creates a template script.ccs\n"
+                << "  urlrules  -> creates a template " CATCARE_URLRULES_FILENAME "\n"
+                << "  browsing  -> creates a template " CATCARE_BROWSING_FILE "\n";
         }
         else {
             print_message("ERROR","Unknown template: " + templ);
@@ -648,43 +774,45 @@ int main(int argc,char** argv) {
 
         if(pargs("append") != "") {
             std::string entry = pargs("append");
-            entry = app_username(to_lowercase(entry));
-            if(blacklisted(entry)) {
-                std::cout << "This repo is already blacklisted!\n";
+            auto url = ask_to_resolve(entry,2);
+            if(url.link == "") return 1;
+            if(blacklisted(url.link)) {
+                std::cout << "This project is already blacklisted!\n";
                 return 0;
             }
-            IniFile file = IniFile::from_file(CATCARE_CONFIGFILE);
+            IniFile file = IniFile::from_file(CATCARE_CONFIG_FILE);
             IniList list = file.get("blacklist");
-            list.push_back(entry);
+            list.push_back(url.link);
             file.set("blacklist",list);
-            file.to_file(CATCARE_CONFIGFILE);
+            file.to_file(CATCARE_TMP_PATH);
             std::cout << "Successfully added!\n";
         }
         else if(pargs("pop") != "") {
             std::string entry = pargs("pop");
-            entry = app_username(to_lowercase(entry));
-            if(!blacklisted(entry)) {
-                std::cout << "This repo is not blacklisted!\n";
+            auto url = ask_to_resolve(entry,2);
+            if(url.link == "") return 1;
+            if(!blacklisted(url.link)) {
+                std::cout << "This project is not blacklisted!\n";
                 return 0;
             }
-            IniFile file = IniFile::from_file(CATCARE_CONFIGFILE);
+            IniFile file = IniFile::from_file(CATCARE_TMP_PATH);
             IniList list = file.get("blacklist");
             for(size_t i = 0; i < list.size(); ++i) {
-                if(list[i].get_type() == IniType::String && (std::string)list[i] == entry) {
+                if(list[i].get_type() == IniType::String && (std::string)list[i] == url.link) {
                     list.erase(list.begin()+i);
                     break;
                 }
             }
             file.set("blacklist",list);
-            file.to_file(CATCARE_CONFIGFILE);
+            file.to_file(CATCARE_TMP_PATH);
             std::cout << "Successfully removed!\n";
         }
         else {
-            IniFile file = IniFile::from_file(CATCARE_CONFIGFILE);
+            IniFile file = IniFile::from_file(CATCARE_CONFIG_FILE);
             IniList list = file.get("blacklist");
 
             if(list.empty()) {
-                std::cout << "No repos blacklisted!\n";
+                std::cout << "No projects blacklisted!\n";
             }
             else {
                 std::cout << "Blacklist: \n";
@@ -700,43 +828,57 @@ int main(int argc,char** argv) {
     }
     else if(pargs("macro") != "") {
         std::string macro = pargs("macro");
-        if(!std::filesystem::exists(CATCARE_MACRODIR)) {
-            std::filesystem::create_directory(CATCARE_MACRODIR);
+        if(!std::filesystem::exists(CATCARE_TMP_PATH)) {
+            std::filesystem::create_directory(CATCARE_MACRO_PATH);
         }
 
         if(macro == ".list") {
             std::cout << "Installed macros:\n";
-            for(auto i : std::filesystem::directory_iterator(CATCARE_MACRODIR CATCARE_DIRSLASH)) {
+            for(auto i : std::filesystem::directory_iterator(CATCARE_MACRO_PATH CATCARE_DIRSLASH)) {
                 std::cout << i.path().string() << "\n";
             }
             return 0;
         }
+        if(macro == ".help") {
+            std::cout 
+            << "Macro help:\n\n"
+            << "Macros are user defined ulitity scripts written in a CareScript variant. (See the wiki for docs)\n"
+            << "Your macro directory is " << CATCARE_MACRO_PATH << "\n"
+            << "Every file placed there can be executed with `catcare macro <name> <args...>`\n"
+            << "This file requires a `macro_call` label with N amount of arguments, this label will get executed\n"
+            << "with automatically loaded extension from " << CATCARE_EXTENSION_PATH << "\n";
+            return 0;
+        }
 
-        if(!std::filesystem::exists(CATCARE_MACRODIR CATCARE_DIRSLASH + macro + CATCARE_CARESCRIPT_EXT)) {
+        if(!std::filesystem::exists(CATCARE_MACRO_PATH CATCARE_DIRSLASH + macro + CATCARE_CARESCRIPT_EXT)) {
             std::cout << "No such macro: " << (macro + CATCARE_CARESCRIPT_EXT) << "\n"
-            << "Check " << (CATCARE_MACRODIR CATCARE_DIRSLASH) << " to see if it's installed!\n";
+            << "Check " << (CATCARE_MACRO_PATH CATCARE_DIRSLASH) << " to see if it's installed!\n";
             return 1;
         }
 
-        ScriptSettings settings;
-        settings.line = 1;
+        interpreter.settings.line = 1;
         ScriptArglist args;
         for(auto i : pargs.get_bin()) {
             args.push_back(ScriptVariable(i));
         }
         
         std::string r;
-        std::ifstream ifile(CATCARE_MACRODIR CATCARE_DIRSLASH + macro + CATCARE_CARESCRIPT_EXT);
+        std::ifstream ifile(CATCARE_MACRO_PATH CATCARE_DIRSLASH + macro + CATCARE_CARESCRIPT_EXT);
         while(ifile.good()) r += ifile.get();
         if(r != "") r.pop_back();
 
-        auto labels = into_labels(r);
-
-        if(labels.count("macro_call") == 0) {
-            std::cout << "Invalid macro file! No \"macro_call\" label found! (at " << (CATCARE_MACRODIR CATCARE_DIRSLASH + macro + CATCARE_CARESCRIPT_EXT) << "\n";
+        interpreter.pre_process(r).on_error([&](Interpreter& i) {
+            std::cout << "Error in macro: " << i.error() << "\n";
+        });
+        if(!interpreter) {
             return 1;
         }
-        auto call = labels["macro_call"];
+
+        if(interpreter.settings.labels.count("macro_call") == 0) {
+            std::cout << "Invalid macro file! No \"macro_call\" label found! (at " << (CATCARE_MACRO_PATH CATCARE_DIRSLASH + macro + CATCARE_CARESCRIPT_EXT) << "\n";
+            return 1;
+        }
+        auto call = interpreter.settings.labels["macro_call"];
         
         if(call.arglist.size() != args.size()) {
             std::cout << "Invalid arguments!\nExpected: [";
@@ -749,27 +891,24 @@ int main(int argc,char** argv) {
             std::cout << "But got:";
             p = "";
             for(auto i : args) {
-                switch(i.type) {
-                    case ScriptVariable::Type::Name:
-                        p += i.name; break;
-                    case ScriptVariable::Type::String:
-                        p += "\"" + i.string + "\""; break;
-                    case ScriptVariable::Type::Number:
-                        p += std::to_string(i.number); break;
-                    default:
-                        p += "null";
-                }
-                p += ", ";
+                p += i.printable() + ", ";
             }
             if(p != "") { p.pop_back(); p.pop_back(); }
             std::cout << "[" << p << "]\n";
             return 1;
         }
     
-        std::string err = run_script("macro_call",labels,CATCARE_MACRODIR CATCARE_DIRSLASH + macro + CATCARE_CARESCRIPT_EXT,args);
-        if(err != "") {
-            print_message("ERROR",err);
+        interpreter.run("macro_call",args).on_error([](Interpreter& i){
+            print_message("ERROR",i.error());
+        });
+    }
+    else if(pargs["this"]) {
+        if(!std::filesystem::exists(CATCARE_CHECKLISTNAME)) {
+            std::cout << "Not in a catcaretaker project.\n";
+            return 1;
         }
+        IniDictionary d = extract_configs(IniFile::from_file(CATCARE_CHECKLISTNAME));
+        print_config(d);
     }
     else {
         print_help();
