@@ -241,7 +241,24 @@ int main(int argc,char** argv) {
         auto url = ask_to_resolve(project,2);
         if(url.link == "") return 1;
 
-        if(url.rule.script_handle == 1)
+        bool dnl = true;
+        Interpreter emb_interpreter;
+        bake_extension(get_extension(),emb_interpreter.settings);
+        load_extensions(emb_interpreter);
+        for(auto i : url.rule.embedded) {
+            dnl &= i.second != 2;
+            if(i.second == 0) {
+                emb_interpreter.pre_process(i.first).on_error([&](Interpreter& i) {
+                    print_message("ERROR","in embed: " + i.error());
+                }).otherwise([](Interpreter& i) {
+                    i.run().on_error([&](Interpreter& j) {
+                        print_message("ERROR","in embed: " + j.error());
+                    });
+                });
+            }
+        }
+
+        if(url.rule.script_handle == 1 && dnl)
             error = download_project(url.link);
 
         if(error != "")
@@ -267,7 +284,18 @@ int main(int argc,char** argv) {
                     }
                 }
             }
-            if(url.rule.script_handle == 0)
+            for(auto i : url.rule.embedded) {
+                if(i.second == 1) {
+                    emb_interpreter.pre_process(i.first).on_error([&](Interpreter& i) {
+                        print_message("ERROR","in embed: " + i.error());
+                    }).otherwise([](Interpreter& i) {
+                        i.run().on_error([&](Interpreter& j) {
+                            print_message("ERROR","in embed: " + j.error());
+                        });
+                    });
+                }
+            }
+            if(url.rule.script_handle == 0 && dnl)
                 error = download_project(url.link);
 
             print_message("RESULT","Successfully installed!");

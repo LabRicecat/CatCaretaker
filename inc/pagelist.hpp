@@ -29,12 +29,16 @@ struct Rule {
     // 1 -> after
     // 2 -> instead
     int script_handle = 1;
+    std::vector<std::pair<std::string,int>> embedded;
 
     void merge(Rule rule) {
         symbols = rule.symbols;
         link = rule.link;
         positions = rule.positions;
         defaults = rule.defaults;
+        scripts = rule.scripts;
+        script_handle = rule.script_handle;
+        embedded = rule.embedded;
     }
 };
 using RuleList = std::unordered_map<std::string,Rule>;
@@ -189,6 +193,31 @@ static inline std::unordered_map<std::string,std::function<std::string(std::vect
         
         return "";
     }},
+    {"EMBED",[](std::vector<KittenToken> args, Rule*& rule, RuleList& rules) -> std::string {
+        HASRULE();
+        NEEDARG(2);
+        NOSTRING(0);
+        NOSTRING(1);
+        std::pair<std::string,int> emb;
+
+        if(args[0].src == "BEFORE") {
+            emb.second = 0;
+        }
+        else if(args[0].src == "AFTER") {
+            emb.second = 1;
+        }
+        else if(args[0].src == "INSTEAD") {
+            emb.second = 2;
+        }
+        else ERR("unknown option: " + args[0].src);
+
+        if(args[1].src.front() != '{') ERR("expected {capsule}");
+        args[1].src.erase(args[1].src.begin());
+        args[1].src.pop_back();
+        emb.first = args[1].src;
+        rule->embedded.push_back(emb);
+        return "";
+    }}
 };
 #undef NEEDARG
 #undef NOSTRING

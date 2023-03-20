@@ -3,6 +3,7 @@
 
 RuleList process_rulelist(std::string source) {
     KittenLexer line_lexer = KittenLexer()
+        .add_capsule('{','}')
         .add_ignore(' ')
         .add_linebreak(';')
         .add_con_extract(is_message_split_sign)
