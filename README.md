@@ -21,7 +21,7 @@ Now it's a good time to run the config helper with:
 $ catcare guide
 ```
 
-## Seting up a project
+## Setting up a project
 To set up a project run this commands:
 ```
 $ catcare setup <projectname>
