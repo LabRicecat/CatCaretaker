@@ -179,7 +179,7 @@ std::string config_healthcare(IniDictionary conf) {
     if(conf.count("scripts") != 0 && conf["scripts"].get_type() != IniType::List) return "\"scripts\" must be a list!";
     if(conf.count("description") != 0 && conf["description"].get_type() != IniType::String) return "\"description\" must be a string!";
     if(conf.count("tags") != 0 && conf["tags"].get_type() != IniType::List) return "\"tags\" must be a list!";
-    if(conf.count("authors") != 0 && conf["authors"].get_type() != IniType::String) return "\"authors\" must be a string!";
+    if(conf.count("authors") != 0 && conf["authors"].get_type() != IniType::List) return "\"authors\" must be a list!";
     if(conf.count("license") != 0 && conf["license"].get_type() != IniType::String) return "\"license\" must be a string!";
     if(conf.count("documentation") != 0 && conf["documentation"].get_type() != IniType::String) return "\"documentation\" must be a string!";
     
