@@ -166,7 +166,10 @@ bool download_scripts(IniList scripts,std::string install_url, std::string name)
             }
 
             print_message("INFO","Entering CCScript: \"" + (std::string)i + "\"");
-            interpreter.pre_process(source).interpreter.run().on_error([&](Interpreter& i) {
+            interpreter.pre_process(source).on_error([&](Interpreter& i) {
+                print_message("ERROR","Script failed:\n" + i.error());
+            });
+            interpreter.run().on_error([&](Interpreter& i) {
                 print_message("ERROR","Script failed:\n" + i.error());
             });
         }

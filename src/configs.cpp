@@ -291,16 +291,17 @@ name = "project-name"
 # optional
 version = "0.0.0" 
 description = ""
+tags = []
+authors = []
+license = ""
+documentation = "" # put the link here
 
 [Download]
 files = [] # append files manually or use `catcare add <file>`
 # optional
 dependencies = [] # append manually and sync or use `catcare get <user>/<project>`
 scripts = [] 
-tags = []
-authors = []
-license = ""
-documentation = "" # put the link here
+
 )");
     }
 }
