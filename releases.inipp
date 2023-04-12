@@ -6,7 +6,7 @@ path_notes = "- added option \"release\"
 - added option \"whatsnew\"
 - added options for \"browse\" to install and uninstall projects
 "
-date = "2023/1/2 15:24:43"
+date = "2023/1"
 
 [1.2.0]
 path_notes = "- added carescript, a DSL to customize the downloading process
@@ -17,18 +17,18 @@ path_notes = "- added carescript, a DSL to customize the downloading process
 - option \"release\" now updates automatically the \"version\" info in the cat_checklist.inipp
 - fixed bug with option \"add\" not working correctly
 "
-date = "2023/1/4 11:45:13"
+date = "2023/1"
 
 [1.2.1]
 path_notes = "- improved option \"guide\" to a full tutorial
 "
-date = "2023/1/5 11:29:15"
+date = "2023/1"
 
 [1.3.0]
 path_notes = "- added labels to catcarescript
 - added the posibility for a \"downloads.ccs\" in the catcare-home directory to change download behavior
 "
-date = "2023/1/8 14:12:42"
+date = "2023/1"
 
 [1.3.1]
 path_notes = "- added option \"macro\" to run user defined scripts
@@ -40,5 +40,11 @@ path_notes = "- added option \"macro\" to run user defined scripts
 - fixed script showcase when executing one
 - changed so that \"exec\" now calls a label of another file
 "
-date = "2023/1/22 12:14:38"
+date = "2023/1"
+
+[2.0.1]
+path_notes = "- fixed EMBED in urlrules.ccr
+- fixed bug regarding slim rules in urlrules.ccr
+"
+date = "2023/4"
 

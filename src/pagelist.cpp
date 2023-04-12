@@ -32,10 +32,11 @@ RuleList process_rulelist(std::string source) {
         std::string err = command(i,current_rule,rules);
         if(err != "") { std::cout << err << "\n"; return {}; }
     }
-    for(auto i : rules)
-        if(i.second.link.url.empty() || i.second.symbols.empty() || i.second.link.placeholders.empty()) 
-            rules.erase(i.first);
-    return rules;
+    //auto cprules = rules;
+    //for(const auto& i : rules)
+    //    if(i.second.link.url.empty() || i.second.symbols.empty() || i.second.link.placeholders.empty()) 
+    //        cprules.erase(i.first);
+    return rules; // TODO: add error checks
 }
 
 bool is_url(std::string check) {
@@ -111,7 +112,7 @@ std::vector<UrlPackage> find_url(RuleList list, std::string source) {
             }
             else s += u;
         }
-        ret.push_back({rule,s});
+        ret.push_back({rule,s,mp});
     }
     return ret;
 }

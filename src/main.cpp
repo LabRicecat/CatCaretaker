@@ -245,18 +245,24 @@ int main(int argc,char** argv) {
         Interpreter emb_interpreter;
         bake_extension(get_extension(),emb_interpreter.settings);
         load_extensions(emb_interpreter);
+        if(url.rule.embedded.size() != 0) print_message("INFO","Executing pre embedds...");
         for(auto i : url.rule.embedded) {
             dnl &= i.second != 2;
-            if(i.second == 0) {
+            if(i.second != 1) {
                 emb_interpreter.pre_process(i.first).on_error([&](Interpreter& i) {
                     print_message("ERROR","in embed: " + i.error());
-                }).otherwise([](Interpreter& i) {
+                }).otherwise([&](Interpreter& i) {
+                    for(auto j : url.rule.link.placeholders) {
+                        i.settings.variables[j] = new ScriptStringValue(url.pairs[j]);
+                    }
                     i.run().on_error([&](Interpreter& j) {
                         print_message("ERROR","in embed: " + j.error());
                     });
                 });
             }
         }
+        if(url.rule.embedded.size() != 0) print_message("INFO","Finished pre embedds!");
+        
 
         if(url.rule.script_handle == 1 && dnl)
             error = download_project(url.link);
@@ -284,6 +290,7 @@ int main(int argc,char** argv) {
                     }
                 }
             }
+            if(url.rule.embedded.size() != 0) print_message("INFO","Executing post embedds...");
             for(auto i : url.rule.embedded) {
                 if(i.second == 1) {
                     emb_interpreter.pre_process(i.first).on_error([&](Interpreter& i) {
@@ -295,6 +302,7 @@ int main(int argc,char** argv) {
                     });
                 }
             }
+            if(url.rule.embedded.size() != 0) print_message("INFO","Executing post embedds...");
             if(url.rule.script_handle == 0 && dnl)
                 error = download_project(url.link);
 

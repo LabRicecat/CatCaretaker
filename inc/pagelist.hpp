@@ -46,6 +46,7 @@ using RuleList = std::unordered_map<std::string,Rule>;
 struct UrlPackage {
     Rule rule;
     std::string link;
+    std::map<std::string,std::string> pairs;
 };
 
 static inline bool is_message_split_sign(char c) {
