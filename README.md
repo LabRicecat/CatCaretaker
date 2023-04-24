@@ -88,8 +88,8 @@ $ catcare option <name> to <value>
 ```
 
 ## urlrules.ccr
-This file is located in the [config directory]() and contains information on how to turn the user input like
-`username/repo@branch` into an URL to download from. It uses it's own markdown language.  
+This file is located in the [config directory]() and contains information on how to turn the user input (like
+`username/repo@branch`) into an URL to download from. It uses it's own markup language.  
 You define different `rules`, where each `rule` defines a `link` and some `placeholders`.  
 Syntax example:
 ```
@@ -110,12 +110,12 @@ RULE github;
   SCRIPTS BEFORE; 
   "embed carescript code right into this file"
   EMBED AFTER {
-    echoln("Hello, World!"
+    echoln("Hello, World!")
   }
 ```
 This rule is now able to turn a string like `name/proj@main` into   
 `https://raw.githubusercontent.com/name/proj/main/`, which then gets downloaded by the catcaretaker.  
-Script files attached with the `ATTACH` keyword bust be placed into the `attachment` config directory.
+Script files attached with the `ATTACH` keyword must be placed into the `attachment` config directory.
 
 ## carescript
 Carescript is the embedded scripting language the catcaretaker uses. It's made by me, lol, and can be found [here]().  
