@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <cstdint>
 
 #define ARG_GET 2
 #define ARG_SET 1
